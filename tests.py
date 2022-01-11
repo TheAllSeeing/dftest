@@ -238,11 +238,17 @@ if __name__ == '__main__':
     for bool_col in bool_cols:
         tests.add_test(partial(test_funcs.boolean_test, bool_col), bool_col + ' Yes/No compliance')
 
-    numerical_cols = ['Apps', 'Accept', 'Enroll', 'Top10perc', 'Top25perc', 'F.Undergrad', 'P.Undergrad', 'Outstate',
+    natural_cols = ['Apps', 'Accept', 'Enroll', 'Top10perc', 'Top25perc', 'F.Undergrad', 'P.Undergrad', 'Outstate',
                       'Room.Board', 'Books', 'Personal', 'PhD', 'Terminal', 'perc.alumni', 'Expend', 'Grad.Rate']
-    for num_col in numerical_cols:
-        tests.add_test(partial(test_funcs.integer_test, num_col), num_col + ' Integer Compliance')
+    for num_col in natural_cols:
+        tests.add_test(partial(test_funcs.nonzero_natural_test, num_col), num_col + ' Integer Compliance')
 
-    tests.add_test(test_funcs.tenpercent_test)
+    perc_cols = ['Top10perc', 'Top25perc', 'PhD', 'Terminal', 'perc.alumni', 'Grad.Rate']
+    for perc_col in perc_cols:
+        tests.add_test(partial(test_funcs.percent_test, perc_col), perc_col + ' Percent compliance')
+
+    tests.add_test(test_funcs.reasonable_room_cost_range_test)
+    tests.add_test(test_funcs.apps_accept_enroll_test)
+    tests.add_test(test_funcs.sane_spending_test)
 
     tests.run()
