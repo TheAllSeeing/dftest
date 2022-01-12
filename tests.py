@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # For creating a test for a specific column out of a more generic one
+import datetime
 from functools import partial
 # For autodetecting accessed columns as a test run, and set the trace function back afterwards.
 from sys import settrace, gettrace
@@ -215,45 +216,59 @@ class DBTests:
         self.add_generic_test(test_func, self.dataframe.select_dtypes(include=dtypes), name, column_autodetect,
                               ignore_columns)
 
-    def run(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
+    def run(self):
         """
-        Iterates over the rows of the database, runs the given tests and shows a coverage report by column — how many
-        of the columns were tested, how many were valid, and a sample of invalid rows for each column.
+        Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
+        """
+        return DBTestResults(
+            self.dataframe,
+            datetime.datetime.now().strftime('%s'),
+            [test.run(self.dataframe) for test in self.tests]
+        )
+
+
+class DBTestResults:
+    def __init__(self, dataframe, timestamp, results: List[TestResult]):
+        self.dataframe: DataFrame = dataframe
+        self.timestamp: int = timestamp
+        self.results = results
+
+        # sum([result.columns_tested for result in results])
+        self.cols_checked = set().union(*(result.columns_tested for result in results))
+        self.validity_by_column: Dict[str, bool] = {}
+
+        for column in self.cols_checked:
+            self.validity_by_column[column] = all(result.success for result in self.get_column_results(column))
+
+    def get_column_results(self, column: str) -> List[TestResult]:
+        return [result for result in self.results if column in result.columns_tested]
+
+    def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
+        """
+        Produces a coverage report of the tests done — how many of the columns were tested, how many were valid,
+        and a sample of invalid rows for each column.
 
         :param show_valid_cols: print result summary for columns that were completely valid. Default false.
         :param show_untested: show columns without tests. Default false.
         :param stub: don't print individual data for each column, just portions tested and valid. Default false.
         :param print_all_failed: print all rows where a test failed. By default only prints up to 10.
         """
+
         num_rows, num_cols = self.dataframe.shape
-        results_by_column: Dict[str, List[TestResult]] = {column: [] for column in self.dataframe}
+        num_checked = len(self.cols_checked)
+        num_valid = sum(1 for column, valid in self.validity_by_column.items() if valid)  # Count fully valid columns
 
-        validity_by_column: Dict[str, bool] = {}
-
-        # Run each test over the dataframe and add the results to each of the columns it tested.
-        for test in self.tests:
-            test_results = test.run(self.dataframe)
-            for column in test_results.columns_tested:
-                results_by_column[column].append(test_results)
-
-        # Count the columns that have at least one test result (and thus were tested at least once)
-        cols_checked = [column for column, result_list in results_by_column.items() if len(result_list) > 0]
-        num_cols_checked = len(cols_checked)
-
-        for column in cols_checked:
-            validity_by_column[column] = all(result.success for result in results_by_column[column])
-
-        valid_cols = sum(1 for column, valid in validity_by_column.items() if valid)  # Count fully valid columns
-        print(f'Columns Tested: {num_cols_checked}/{num_cols} ({round(num_cols_checked / num_cols * 100)}%).')
-        print(f'Columns valid: {valid_cols}/{num_cols} ({round(valid_cols / num_cols * 100, 2)}%).')
+        print(f'Columns Tested: {num_checked}/{num_cols} ({round(num_checked / num_cols * 100)}%).')
+        print(f'Columns valid: {num_valid}/{num_cols} ({round(num_valid / num_cols * 100, 2)}%).')
 
         if not stub:  # If stub not set, print details for individual columns.
             print()
             for i, column in enumerate(self.dataframe.columns, 1):
                 # Don't show valid or untested columns unless specified.
-                if (column in cols_checked or show_untested) and (column in cols_checked and not validity_by_column[column] or show_valid_cols):
+                if (column in self.cols_checked or show_untested) \
+                        and (column in self.cols_checked and not self.validity_by_column[column] or show_valid_cols):
                     print(f'--- Column {i}: {column} ---')
-                    for j, result in enumerate(results_by_column[column], 1):
+                    for j, result in enumerate(self.get_column_results(column), 1):
                         print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
                         num_failed = len(result.rows_of_failure)
                         num_passed = num_rows - num_failed
@@ -293,4 +308,5 @@ if __name__ == '__main__':
     tests.add_test(test_funcs.apps_accept_enroll_test)
     tests.add_test(test_funcs.sane_spending_test)
 
-    tests.run()
+    results = tests.run()
+    results.print()
