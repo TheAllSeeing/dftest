@@ -167,6 +167,53 @@ class DBTests:
         self.tests.append(test)
 
 
+    def add_generic_test(self, test_func: Callable[[Series, str], bool],  columns: List[str] = None, name: str = None,
+                         column_autodetect: bool = False, ignore_columns: List[str] = None):
+        """
+        Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
+        predicate will not only take a row parameter, but also a column parameter preceding it. Individual
+        tests will be added for each of the given columns with the predicate column parameter set to them.
+
+        :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
+
+        :param columns: the columns this test should run on. Default is all the columns in the dataframe.
+
+        :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
+        property. By default (and if given `None`) this will be set to the name of the predicate function.
+
+        :param column_autodetect: don't set the given column as the tested one, and instead
+        autodetect tested columns at runtime. Default false.
+
+        :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
+        True, this has no effect
+        """
+        for column in columns:
+            tested_cols = None if column_autodetect else [column]
+            self.add_test(partial(test_func, column), name + ' — ' + column, tested_cols, ignore_columns)
+
+    def add_dtype_test(self, test_func: Callable[[Series, str], bool], dtypes: List[str], name: str = None,
+                         column_autodetect: bool = False, ignore_columns: List[str] = None):
+        """
+        Adds a generic test to columns of a certain dtype or dtypes. Instead of as in :func:`add_test`, the
+        predicate will not only take a row parameter, but also a column parameter preceding it. Individual
+        tests will be added for each of the column of the dtypes given with the predicate column parameter
+        set to them.
+
+        :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
+
+        :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
+        property. By default (and if given `None`) this will be set to the name of the predicate function.
+
+        :param dtypes: the dtypes this test should run on. Default is all the columns in the dataframe.
+
+        :param column_autodetect: don't set the given column as the tested one, and instead
+        autodetect tested columns at runtime. Default false.
+
+        :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
+        True, this has no effect
+        """
+        self.add_generic_test(test_func, self.dataframe.select_dtypes(include=dtypes), name, column_autodetect,
+                              ignore_columns)
 
     def run(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
@@ -232,18 +279,15 @@ if __name__ == '__main__':
     df = pandas.read_csv('College.csv')  # Example dataset taken from  the book An Introduction to Statistical Learning
     tests = DBTests(df)
 
-    bool_cols = ['Private'] 
-    for bool_col in bool_cols:
-        tests.add_test(partial(test_funcs.boolean_test, bool_col), bool_col + ' Yes/No compliance')
+    bool_cols = ['Private']
+    tests.add_generic_test(test_funcs.boolean_test, name='Yes/No Compliance', columns=bool_cols)
 
     natural_cols = ['Apps', 'Accept', 'Enroll', 'Top10perc', 'Top25perc', 'F.Undergrad', 'P.Undergrad', 'Outstate',
                       'Room.Board', 'Books', 'Personal', 'PhD', 'Terminal', 'perc.alumni', 'Expend', 'Grad.Rate']
-    for num_col in natural_cols:
-        tests.add_test(partial(test_funcs.nonzero_natural_test, num_col), num_col + ' Integer Compliance')
+    tests.add_generic_test(test_funcs.nonzero_natural_test, name='Integer Compliance', columns=natural_cols)
 
     perc_cols = ['Top10perc', 'Top25perc', 'PhD', 'Terminal', 'perc.alumni', 'Grad.Rate']
-    for perc_col in perc_cols:
-        tests.add_test(partial(test_funcs.percent_test, perc_col), perc_col + ' Percent compliance')
+    tests.add_generic_test(test_funcs.percent_test, name='Percent Compliance', columns=perc_cols)
 
     tests.add_test(test_funcs.reasonable_room_cost_range_test)
     tests.add_test(test_funcs.apps_accept_enroll_test)
