@@ -8,15 +8,21 @@ from functools import partial
 from sys import settrace, gettrace
 # For better typehinting
 from typing import List, Callable, Dict, Tuple, Set
+# For displaying coverage and result graphs
+from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
 
 # For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
 # attribute). from-import not used to make the purpose of these methods more explicit.
 import pandas
+# For graph graphics
+import matplotlib
 
 # Example testing functions defined by me
 import test_funcs
+
+matplotlib.use('TkAgg')
 
 
 class Test:
@@ -288,6 +294,20 @@ class DBTestResults:
                             print('...')
 
                         print()
+
+    def show_summary(self):
+        num_rows, num_cols = self.dataframe.shape
+        num_checked = len(self.cols_checked)
+        num_valid = sum(1 for column, valid in self.validity_by_column.items() if valid)  # Count fully valid columns
+
+        plt.figure(1)
+        plt.pie([num_checked, num_cols - num_checked], labels=['Tested', 'Untested'])
+        plt.figure(2)
+        plt.pie([num_valid, num_cols - num_valid], labels=['Valid', 'Invalid'])
+        plt.show()
+
+    def show_column(self):
+        pass
 
 
 if __name__ == '__main__':
