@@ -163,12 +163,10 @@ class DBTests:
         :param ignore_columns: columns to ignore in tested-columns autodetection. If `tested_columns` is set,
         columns that appear in it and in here will be ignored also.
         """
+        test = Test(test_func, name, tested_columns, ignore_columns)
+        self.tests.append(test)
 
-        try:
-            test = Test(test_func, name, tested_columns, ignore_columns)
-            self.tests.append(test)
-        except KeyError:
-            raise ValueError('Tried to register a test for a column that does not exist in the dataframe!')
+
 
     def run(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
