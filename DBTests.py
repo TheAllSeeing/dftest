@@ -14,9 +14,11 @@ from typing import List, Callable
 import matplotlib
 # For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
 # attribute). from-import not used to make the purpose of these methods more explicit.
+import numpy as np
 import pandas
 # For displaying coverage and result graphs
 import pandasgui
+import seaborn
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
@@ -244,6 +246,23 @@ class ColumnResults:
         axis.legend()
         return fig
 
+    def graph_validity_heatmap(self):
+        test_labels = [result.from_test.name for result in self.results]
+        data = np.array([result.num_valid/self.num_rows for result in self.results])
+        fig, ax = plt.subplots()
+        colors = ['red', 'orange', 'yellow', 'blue', 'green']
+        color_steps = [self.config.integrity_levels[color] for color in colors]
+        color_map = utils.nonlinear_cmap(colors, color_steps)
+
+        seaborn.heatmap([data],
+                        vmin=0, vmax=1,
+                        square=True,
+                        cmap=color_map,
+                        cbar_kws=dict(use_gridspec=False, location="bottom"),
+                        annot=True, fmt='.1%',
+                        xticklabels=test_labels, yticklabels=False)
+
+        for t in ax.texts: t.set_text(t.get_text() + " %")
     def graph_validity(self) -> plt.Figure:
         """
         Generates a pie graph of the column validity as a pyplot figure
