@@ -114,10 +114,11 @@ class DBTests:
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
+        dataframe_rows = [row for i, row in self.dataframe.iterrows()]
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
-            [test.run(self.dataframe) for test in self.tests]
+            [test.run(dataframe_rows) for test in self.tests]
         )
 
 

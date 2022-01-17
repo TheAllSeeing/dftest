@@ -82,21 +82,21 @@ class Test:
 
         return test_result, accessed_columns.difference(self.ignore_columns)
 
-    def run(self, dataframe: DataFrame) -> TestResult:
+    def run(self, dataframe_rows: List[Series]) -> TestResult:
         """
         Runs the test on a full dataframe.
 
-        :param dataframe: The dataframe to test
+        :param dataframe_rows: The dataframe rows to test
         :return: the test result as a TestResult object. the test result as a :class:`TestResult` object.
         """
         columns_tested = set()
         rows_of_failure = []
-        for i, row in dataframe.iterrows():
+        for row in dataframe_rows:
             row_success, columns_tested_in_row = self.test_row(row)
             if not row_success:
                 rows_of_failure.append(row)
             columns_tested = columns_tested.union(columns_tested_in_row)
-        return TestResult(self, columns_tested, len(dataframe.index), rows_of_failure)
+        return TestResult(self, columns_tested, len(dataframe_rows), rows_of_failure)
 
 
 class TestResult:
