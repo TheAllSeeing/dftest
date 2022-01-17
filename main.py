@@ -57,4 +57,3 @@ def is_positive_float(column: str, row: Series):
         return float(row[column]) > 0
     except ValueError:
         return False
-
