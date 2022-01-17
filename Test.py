@@ -96,7 +96,7 @@ class Test:
             if not row_success:
                 rows_of_failure.append(row)
             columns_tested = columns_tested.union(columns_tested_in_row)
-        return TestResult(self, columns_tested, rows_of_failure)
+        return TestResult(self, columns_tested, len(dataframe.index), rows_of_failure)
 
 
 class TestResult:
@@ -104,7 +104,7 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: Test, columns_tested: Set[str], invalid_rows: List[Series]):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows: List[Series]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
@@ -112,7 +112,22 @@ class TestResult:
         """
         self.from_test = origin_test
         self.columns_tested = columns_tested
+        self.num_tested = num_tested
         self.invalid_rows = invalid_rows
         self.success = len(invalid_rows) == 0
+
+    @property
+    def num_invalid(self):
+        """
+        Number of dataframe rows that failed the test
+        """
+        return len(self.invalid_rows)
+
+    @property
+    def num_valid(self):
+        """
+        Number of dataframe rows that passes the test
+        """
+        return self.num_tested - self.num_invalid
 
 
