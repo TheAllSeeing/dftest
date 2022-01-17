@@ -23,7 +23,7 @@ from pandas import DataFrame, Series
 
 import utils
 from Test import Test, TestResult
-from config import Config
+from config import Config, ColumnConfig
 
 matplotlib.use('TkAgg')
 
@@ -157,7 +157,8 @@ class DBTests:
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
-            base_tests_results + config_tests_results
+            base_tests_results + config_tests_results,
+            self.config
         )
 
 
@@ -170,7 +171,7 @@ class ColumnResults:
     in pandasgui.
     """
 
-    def __init__(self, column: str, results: List[TestResult], num_rows: int):
+    def __init__(self, column: str, results: List[TestResult], num_rows: int, config: ColumnConfig):
         """
         :param column: the name of the column
         :param results: a list of each :class:`TestResult` result from the tests ran over the columns.
@@ -179,6 +180,7 @@ class ColumnResults:
         self.column = column
         self.results = results
         self.num_rows = num_rows
+        self.config = config
         self.invalid_rows = []
         self.figures = []
 
@@ -237,6 +239,17 @@ class ColumnResults:
         fig, axis = plt.subplots()
         axis.bar(labels, valids, label='Valid Rows', color='green')
         axis.bar(labels, invalids, label='Invalid Rows', bottom=valids, color='red')
+        axis.legend()
+        return fig
+
+    def graph_tests_success_colored(self) -> plt.Figure:
+        labels = [result.from_test.name for result in self.results]
+        valid_rates = [result.num_valid / self.num_rows for result in self.results]
+        colors = [self.config.colorcode(valid_rate) for valid_rate in valid_rates]
+
+        fig, axis = plt.subplots()
+
+        axis.bar(labels, valid_rates, label='Valid Rows', color=colors)
         axis.legend()
         return fig
 
@@ -306,10 +319,11 @@ class ColumnResults:
 
 
 class DBTestResults:
-    def __init__(self, dataframe, timestamp, results: List[TestResult]):
+    def __init__(self, dataframe, timestamp, results: List[TestResult], config: Config):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
         self.results = results
+        self.config = config
 
         # self.cols_checked = reduce(set.union, cols_checked)
         self.cols_checked = set().union(*(result.columns_tested for result in results))
@@ -320,7 +334,7 @@ class DBTestResults:
         :return: a :class:`ColumnResults` object containing all the results for tests that tested the specified column
         """
         res_list = [result for result in self.results if column in result.columns_tested]
-        return ColumnResults(column, res_list, len(self.dataframe.index))
+        return ColumnResults(column, res_list, len(self.dataframe.index), self.config.get_column_config(column))
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
