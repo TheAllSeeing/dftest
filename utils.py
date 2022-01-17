@@ -34,3 +34,30 @@ def get_func_from_addr(func_addr: str):
     for attr in func_addr:
         base_attr = getattr(base_attr, attr)
     return base_attr
+
+
+# From https://stackoverflow.com/a/49601444/10913212
+def adjust_lightness(color, amount=0.5):
+    """
+    adjust the given color by multiplying (1-luminosity) by the given amount.
+    Input can be matplotlib color string, hex string, or RGB tuple.
+
+    Examples:
+    >> lighten_color('g', 0.3)
+    >> lighten_color('#F034A3', 0.6)
+    >> lighten_color((.3,.55,.1), 0.5)
+    """
+    # To get RGB from input
+    from matplotlib.colors import cnames, to_rgb
+    # To adjust in HLS
+    import colorsys
+    try:
+        color_code = cnames[color]
+    except KeyError:
+        color_code = color
+    color_code = colorsys.rgb_to_hls(*to_rgb(color_code))
+    return colorsys.hls_to_rgb(
+        color_code[0],  # Hue remains
+        max(0, min(1, amount * color_code[1])),  #
+        color_code[2]
+    )

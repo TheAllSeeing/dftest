@@ -233,23 +233,14 @@ class ColumnResults:
         :returns: the graph's pyplot figure
         """
         labels = [result.from_test.name for result in self.results]
-        valids = [result.num_valid for result in self.results]
-        invalids = [result.num_invalid for result in self.results]
+        valid_nums = [result.num_valid for result in self.results]
+        valid_colors = [self.config.colorcode(valid_num/self.num_rows) for valid_num in valid_nums]
+        invalid_nums = [result.num_invalid for result in self.results]
+        invalid_colors = [utils.adjust_lightness(valid_color, 0.4) for valid_color in valid_colors]
 
         fig, axis = plt.subplots()
-        axis.bar(labels, valids, label='Valid Rows', color='green')
-        axis.bar(labels, invalids, label='Invalid Rows', bottom=valids, color='red')
-        axis.legend()
-        return fig
-
-    def graph_tests_success_colored(self) -> plt.Figure:
-        labels = [result.from_test.name for result in self.results]
-        valid_rates = [result.num_valid / self.num_rows for result in self.results]
-        colors = [self.config.colorcode(valid_rate) for valid_rate in valid_rates]
-
-        fig, axis = plt.subplots()
-
-        axis.bar(labels, valid_rates, label='Valid Rows', color=colors)
+        axis.bar(labels, valid_nums, label='Valid Rows', color=valid_colors)
+        axis.bar(labels, invalid_nums, label='Invalid Rows', bottom=valid_nums, color=invalid_colors)
         axis.legend()
         return fig
 
