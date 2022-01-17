@@ -131,8 +131,11 @@ class ColumnResults:
     """
     The results of tests over a column using one or more multiple predicates.
 
-    This class is used to display results for individual columns, as opposed to thw whole dataframe
+    This class is used to display results for individual columns, as opposed to thw whole dataframe, both ny writing
+    to stdout, displaying summary graphs for the column or individual tests and showing the invalid rows for the column
+    in pandasgui.
     """
+
     def __init__(self, column: str, results: List[TestResult], num_rows: int):
         """
         :param column: the name of the column
