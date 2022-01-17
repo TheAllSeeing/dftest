@@ -114,7 +114,11 @@ class TestResult:
         self.columns_tested = columns_tested
         self.num_tested = num_tested
         self.invalid_rows = invalid_rows
-        self.success = len(invalid_rows) == 0
+
+
+    @property
+    def success(self):
+        return len(self.invalid_rows) == 0
 
     @property
     def num_invalid(self):
