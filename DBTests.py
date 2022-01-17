@@ -23,6 +23,7 @@ from pandas import DataFrame, Series
 
 import utils
 from Test import Test, TestResult
+from config import Config
 
 matplotlib.use('TkAgg')
 
@@ -43,6 +44,37 @@ class DBTests:
         self.dataframe: DataFrame = df
         self.tests: List[Test] = []
         self.columns_tested = set()
+        self.config = Config()
+
+    def load_config(self, config_file: open):
+        """
+        Loads a JSON config file.
+
+        A config flle may be something like
+        ```
+        {
+            "Column" : {
+                "type": "column_type"
+                "tests": [
+                    "module.function",
+                    "module.class.function"
+                ]
+                "integrity-levels": {
+                  "red": 0,
+                  "orange": 0.25,
+                  "yellow": 0.5,
+                  "blue": 0.75,
+                  "green": 1
+                }
+            }
+        }
+        ```
+
+        You may specify any of the attributes as you like, and missing values will be infered from the configuration of
+        the __DEFAULT__ column if it exists, and otherwise set to type str, no tests and the integrity-levels shown
+        above.
+        """
+        self.config = Config(config_file)
 
     def add_test(self, test_func: Callable[[Series], bool], name: str = None, tested_columns: List[str] = None,
                  ignore_columns: List[str] = None):
@@ -120,10 +152,12 @@ class DBTests:
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
         dataframe_rows = list(self.dataframe.iterrows())
+        base_tests_results = [test.run(dataframe_rows) for test in self.tests]
+        config_tests_results = [test.run(dataframe_rows) for test in self.config.get_tests(self.dataframe)]
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
-            [test.run(dataframe_rows) for test in self.tests]
+            base_tests_results + config_tests_results
         )
 
 
