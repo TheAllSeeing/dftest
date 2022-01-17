@@ -99,7 +99,7 @@ class DBTests:
         test = Test(test_func, name, tested_columns, ignore_columns)
         self.tests.append(test)
 
-    def add_generic_test(self, test_func: Callable[[Series, str], bool], columns: List[str] = None, name: str = None,
+    def add_generic_test(self, test_func: Callable[[str, Series], bool], columns: List[str] = None, name: str = None,
                          column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
