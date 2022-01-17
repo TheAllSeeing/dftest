@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 from functools import partial
 # For better typehinting
-from typing import List, Callable, Dict
+from typing import List, Callable
 
 # For graph graphics
 import matplotlib
@@ -122,21 +122,113 @@ class DBTests:
         )
 
 
+class ColumnResults:
+    """
+    The results of tests over a column using one or more multiple predicates.
+
+    This class is used to display results for individual columns, as opposed to thw whole dataframe
+    """
+    def __init__(self, column: str, results: List[TestResult], num_rows: int):
+        """
+        :param column: the name of the column
+        :param results: a list of each :class:`TestResult` result from the tests ran over the columns.
+        :param num_rows: the number of dataframe rows where the column was tested
+        """
+        self.column = column
+        self.results = results
+        self.num_rows = num_rows
+        self.invalid_rows = []
+        self.figures = []
+
+        # Store a set of the invalid rows. Since rows are not hashable this is not
+        # actually a set, and a list of row numbers is instead used to ensure distinction.
+        invalid_row_nums = []
+        for result in results:
+            if not result.success:
+                for i, row in result.invalid_rows_tuples():
+                    if i not in invalid_row_nums:
+                        # Can't check row list directly, since the truth value of a Series is ambiguous.
+                        self.invalid_rows.append(row)
+                        invalid_row_nums.append(i)
+
+    @property
+    def valid(self):
+        """
+        Whether or not the column completely passes each of the tests ran.
+        """
+        return all(result.success for result in self.results)
+
+    @property
+    def num_tests(self):
+        """
+        The number of tests ran over the column
+        """
+        return len(self.results)
+
+    @property
+    def num_invalid(self):
+        """
+        The number of rows where cells in this column failed at least one test.
+        """
+        return len(self.invalid_rows)
+
+    @property
+    def num_valid(self):
+        """
+        The number of rows where cells in this column passed all tests.
+        """
+        return self.num_rows - self.num_invalid
+
+    def print(self, columns_to_include=None, column_number=None, print_all_failed=False):
+        """
+        Prints the results of the column to stdout. Generally, this will generate a title with the column name,
+        and print each test, the valid:rows ratio for it and row s where it failed (up to 10)
+
+        :param columns_to_include: columns to include when printing rows of failure.
+        By default only row number and this column are printed.
+
+        :param column_number: specify a column index in the printed title.
+
+        :param print_all_failed: print all invalid rows for each test. By default, prints up to 10.
+        """
+        prefix = f'Column {column_number}: ' if columns_to_include is not None else ''
+        print(f'--- {prefix}{self.column} ---')
+        for j, result in enumerate(self.results, 1):
+            print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
+            print(f'{result.num_valid}/{self.num_rows} '
+                  f'({round(self.num_valid / self.num_rows * 100, 2)}%).')
+
+            pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
+
+            if print_all_failed:
+                to_print = result.invalid_rows
+            else:
+                to_print = result.invalid_rows[:10]
+
+            for row in to_print:
+                print(row[set(columns_to_include).union({self.column})].to_frame().T.to_string(header=False))
+            if not print_all_failed and len(result.invalid_rows) > 10:
+                print('...')
+
+            print()
+
+
 class DBTestResults:
     def __init__(self, dataframe, timestamp, results: List[TestResult]):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
         self.results = results
 
-        # sum([result.columns_tested for result in results])
+        # self.cols_checked = reduce(set.union, cols_checked)
         self.cols_checked = set().union(*(result.columns_tested for result in results))
-        self.validity_by_column: Dict[str, bool] = {}
 
-        for column in self.cols_checked:
-            self.validity_by_column[column] = all(result.success for result in self.get_column_results(column))
-
-    def get_column_results(self, column: str) -> List[TestResult]:
-        return [result for result in self.results if column in result.columns_tested]
+    def get_column_results(self, column: str) -> ColumnResults:
+        """
+        :param column: the column to get the results for
+        :return: a :class:`ColumnResults` object containing all the results for tests that tested the specified column
+        """
+        res_list = [result for result in self.results if column in result.columns_tested]
+        return ColumnResults(column, res_list, len(self.dataframe.index))
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
@@ -151,7 +243,8 @@ class DBTestResults:
 
         num_rows, num_cols = self.dataframe.shape
         num_checked = len(self.cols_checked)
-        num_valid = sum(1 for column, valid in self.validity_by_column.items() if valid)  # Count fully valid columns
+        # Count fully valid columns
+        num_valid = sum(1 for column in self.cols_checked if self.get_column_results(column).valid)
 
         print(f'Columns Tested: {num_checked}/{num_cols} ({round(num_checked / num_cols * 100)}%).')
         print(f'Columns valid: {num_valid}/{num_cols} ({round(num_valid / num_cols * 100, 2)}%).')
@@ -159,41 +252,20 @@ class DBTestResults:
         if not stub:  # If stub not set, print details for individual columns.
             print()
             for i, column in enumerate(self.dataframe.columns, 1):
+                column_res = self.get_column_results(column)
                 # Don't show valid or untested columns unless specified.
                 if (column in self.cols_checked or show_untested) \
-                        and (column in self.cols_checked and not self.validity_by_column[column] or show_valid_cols):
-                    print(f'--- Column {i}: {column} ---')
-                    for j, result in enumerate(self.get_column_results(column), 1):
-                        print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
-                        num_failed = len(result.invalid_rows)
-                        num_passed = num_rows - num_failed
-                        print(f'{num_passed}/{num_rows} '
-                              f'({round(num_passed / num_rows * 100, 2)}%).')
-
-                        pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
-
-                        if print_all_failed:
-                            to_print = result.invalid_rows
-                        else:
-                            to_print = result.invalid_rows[:10]
-
-                        for row in to_print:
-                            print(row[[self.dataframe.columns[0], column]].to_frame().T.to_string(header=False))
-                        if not print_all_failed and len(result.invalid_rows) > 10:
-                            print('...')
-
-                        print()
+                        and (column in self.cols_checked and not column_res.valid or show_valid_cols):
+                    column_res.print(columns_to_include=[self.dataframe.columns[0]], column_number=i,
+                                     print_all_failed=print_all_failed)
 
     def show_summary(self):
         num_rows, num_cols = self.dataframe.shape
         num_checked = len(self.cols_checked)
-        num_valid = sum(1 for column, valid in self.validity_by_column.items() if valid)  # Count fully valid columns
+        num_valid = sum(1 for column in self.cols_checked if self.get_column_results(column).valid)
 
         plt.figure(1)
         plt.pie([num_checked, num_cols - num_checked], labels=['Tested', 'Untested'])
         plt.figure(2)
         plt.pie([num_valid, num_cols - num_valid], labels=['Valid', 'Invalid'])
         plt.show()
-
-    def show_column(self):
-        pass
