@@ -104,15 +104,15 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: Test, columns_tested: Set[str], rows_of_failure):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], invalid_rows: List[Series]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
-        :param rows_of_failure: a list of rows where the test failed.
+        :param invalid_rows: a list of rows where the test failed.
         """
         self.from_test = origin_test
         self.columns_tested = columns_tested
-        self.rows_of_failure = rows_of_failure
-        self.success = len(rows_of_failure) == 0
+        self.invalid_rows = invalid_rows
+        self.success = len(invalid_rows) == 0
 
 

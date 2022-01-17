@@ -164,7 +164,7 @@ class DBTestResults:
                     print(f'--- Column {i}: {column} ---')
                     for j, result in enumerate(self.get_column_results(column), 1):
                         print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
-                        num_failed = len(result.rows_of_failure)
+                        num_failed = len(result.invalid_rows)
                         num_passed = num_rows - num_failed
                         print(f'{num_passed}/{num_rows} '
                               f'({round(num_passed / num_rows * 100, 2)}%).')
@@ -172,13 +172,13 @@ class DBTestResults:
                         pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
 
                         if print_all_failed:
-                            to_print = result.rows_of_failure
+                            to_print = result.invalid_rows
                         else:
-                            to_print = result.rows_of_failure[:10]
+                            to_print = result.invalid_rows[:10]
 
                         for row in to_print:
                             print(row[[self.dataframe.columns[0], column]].to_frame().T.to_string(header=False))
-                        if not print_all_failed and len(result.rows_of_failure) > 10:
+                        if not print_all_failed and len(result.invalid_rows) > 10:
                             print('...')
 
                         print()
