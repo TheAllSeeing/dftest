@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # For creating a test for a specific column out of a more generic one
 import datetime
+# For compressing generic column, row tests to individual column
 from functools import partial
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process

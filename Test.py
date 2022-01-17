@@ -87,7 +87,7 @@ class Test:
         Runs the test on a full dataframe.
 
         :param dataframe_rows: The dataframe rows to test
-        :return: the test result as a TestResult object. the test result as a :class:`TestResult` object.
+        :return: the test result as a :class:`TestResult` object.
         """
         columns_tested = set()
         rows_of_failure = []
