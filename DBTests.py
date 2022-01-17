@@ -258,7 +258,9 @@ class ColumnResults:
                 to_print = result.invalid_rows[:10]
 
             for row in to_print:
-                print(row[set(columns_to_include).union({self.column})].to_frame().T.to_string(header=False))
+                columns_to_include = set() if columns_to_include is None else set(columns_to_include)
+                columns_to_include = columns_to_include.union({self.column})
+                print(row[columns_to_include].to_frame().T.to_string(header=False))
             if not print_all_failed and len(result.invalid_rows) > 10:
                 print('...')
 
