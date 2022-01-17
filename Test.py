@@ -3,7 +3,7 @@ from __future__ import annotations
 # For autodetecting accessed columns as a test run, and set the trace function back afterwards.
 from sys import settrace, gettrace
 # For better typehinting
-from typing import List, Callable, Tuple, Set
+from typing import List, Callable, Tuple, Set, Hashable
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
 
@@ -82,7 +82,7 @@ class Test:
 
         return test_result, accessed_columns.difference(self.ignore_columns)
 
-    def run(self, dataframe_rows: List[Series]) -> TestResult:
+    def run(self, dataframe_rows: List[Tuple[Hashable, Series]]) -> TestResult:
         """
         Runs the test on a full dataframe.
 
@@ -91,10 +91,10 @@ class Test:
         """
         columns_tested = set()
         rows_of_failure = []
-        for row in dataframe_rows:
+        for i, row in dataframe_rows:
             row_success, columns_tested_in_row = self.test_row(row)
             if not row_success:
-                rows_of_failure.append(row)
+                rows_of_failure.append((i, row))
             columns_tested = columns_tested.union(columns_tested_in_row)
         return TestResult(self, columns_tested, len(dataframe_rows), rows_of_failure)
 
@@ -104,7 +104,7 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows: List[Series]):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows: List[Tuple[int, Series]]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
@@ -113,8 +113,11 @@ class TestResult:
         self.from_test = origin_test
         self.columns_tested = columns_tested
         self.num_tested = num_tested
-        self.invalid_rows = invalid_rows
+        self._invalid_rows = invalid_rows
 
+    @property
+    def invalid_rows(self):
+        return [row for i, row in self._invalid_rows]
 
     @property
     def success(self):
@@ -133,5 +136,8 @@ class TestResult:
         Number of dataframe rows that passes the test
         """
         return self.num_tested - self.num_invalid
+
+    def invalid_rows_tuples(self):
+        return self._invalid_rows
 
 
