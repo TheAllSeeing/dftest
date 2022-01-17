@@ -21,6 +21,7 @@ from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
 
+import utils
 from Test import Test, TestResult
 
 matplotlib.use('TkAgg')
