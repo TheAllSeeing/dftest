@@ -4,6 +4,8 @@ from __future__ import annotations
 # For creating a test for a specific column out of a more generic one
 import datetime
 from functools import partial
+# For running pandasgui in the background (so execution is not blocked until user closes it)
+from multiprocessing import Process
 # For better typehinting
 from typing import List, Callable
 
@@ -13,6 +15,7 @@ import matplotlib
 # attribute). from-import not used to make the purpose of these methods more explicit.
 import pandas
 # For displaying coverage and result graphs
+import pandasgui
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
@@ -178,6 +181,54 @@ class ColumnResults:
         The number of rows where cells in this column passed all tests.
         """
         return self.num_rows - self.num_invalid
+
+    def graph_tests_success(self) -> plt.Figure:
+        """
+        Generates a stacked bar chart showcasing the number of successes (in green)
+        and failures (in red) of each test in the column
+
+        Note: In order for the graphs to show, you have to call `pyplot.show()`
+
+        :returns: the graph's pyplot figure
+        """
+        labels = [result.from_test.name for result in self.results]
+        valids = [result.num_valid for result in self.results]
+        invalids = [result.num_invalid for result in self.results]
+
+        fig, axis = plt.subplots()
+        axis.bar(labels, valids, label='Valid Rows', color='green')
+        axis.bar(labels, invalids, label='Invalid Rows', bottom=valids, color='red')
+        axis.legend()
+        return fig
+
+    def graph_validity(self) -> plt.Figure:
+        """
+        Generates a pie graph of the column validity as a pyplot figure
+
+        Note: In order for the graphs to show, you have to call `pyplot.show()`
+
+        :returns: the graph's pyplot figure
+        """
+        fig = plt.figure()
+        data = [self.num_valid, self.num_invalid]
+        labels = ['Valid', 'Invalid']
+
+        plt.pie(data, autopct=utils.pie_autopct(data), colors=['green', 'red'])
+        fig.legend(labels)
+        fig.suptitle(self.column + ' Validity')
+
+        return fig
+
+    def open_invalid_rows(self, index):
+        """
+        Opens the invalid rows at the specified columns in the pandasgui interface.
+
+        :param index: an iterable of the columns to include. This will always include this column.
+        """
+        index = set(index).union({self.column})
+        failures = [result.get_failures(index) for result in self.results]
+        pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
+        return pandas_proc.start()
 
     def print(self, columns_to_include=None, column_number=None, print_all_failed=False):
         """

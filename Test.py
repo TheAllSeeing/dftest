@@ -3,9 +3,9 @@ from __future__ import annotations
 # For autodetecting accessed columns as a test run, and set the trace function back afterwards.
 from sys import settrace, gettrace
 # For better typehinting
-from typing import List, Callable, Tuple, Set, Hashable
+from typing import List, Callable, Tuple, Set, Hashable, Union
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, Index
 
 
 class Test:
@@ -139,5 +139,14 @@ class TestResult:
 
     def invalid_rows_tuples(self):
         return self._invalid_rows
+
+    def get_failures(self, index: Union[Index, Set[str]], include=None) -> DataFrame:
+        failure_df = DataFrame(zip(*[row[index] for row in self.invalid_rows])).T
+        failure_df.columns = index
+
+        if include is not None:
+            failure_df = failure_df[include]
+
+        return failure_df
 
 
