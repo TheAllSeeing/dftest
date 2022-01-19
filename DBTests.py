@@ -185,7 +185,10 @@ class ColumnResults:
         self.results = results
         self.config = config
         self.dataframe = dataframe
-        self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
+        try:
+            self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
+        except TypeError: # Reduce throws a TypeError if it's given an empty list.
+            self.invalid_row_index = set()
 
     @property
     def valid(self):
