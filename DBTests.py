@@ -335,8 +335,28 @@ class DBTestResults:
         self.results = results
         self.config = config
 
-        # self.cols_checked = reduce(set.union, cols_checked)
         self.cols_checked = set().union(*(result.columns_tested for result in results))
+        self.invalid_row_index = set().union(*(result.invalid_row_index for result in results))
+
+    @property
+    def num_rows(self):
+        """Number of rows tested"""
+        return len(self.dataframe.index)
+
+    @property
+    def num_invalid(self):
+        """Number of rows that came as invalid under at least one test"""
+        return len(self.invalid_row_index)
+
+    @property
+    def num_valid(self):
+        """Number of rows that passes all tests ran"""
+        return self.num_rows - self.num_invalid
+
+    @property
+    def column_results(self):
+        """The list of :class:`ColumnResults` objects for each column in the tested dataframe"""
+        return [self.get_column_results(column) for column in self.dataframe.columns]
 
     def get_column_results(self, column: str) -> ColumnResults:
         """
