@@ -1,3 +1,9 @@
+# To get RGB from input
+from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
+# To adjust in HLS
+import colorsys
+
+
 def pie_autopct(data):
     """
     Generates a function for automatic labeling of pie charts by number and percent values
@@ -36,6 +42,16 @@ def get_func_from_addr(func_addr: str):
     return base_attr
 
 
+def to_hex(color):
+    # if type(color) == tuple:
+    #     return f"#{}"
+    # if color.startswith('#'):
+    #     return color
+    try:
+        return cnames[color]
+    except KeyError:
+        return color
+
 # From https://stackoverflow.com/a/49601444/10913212
 def adjust_lightness(color, amount=0.5):
     """
@@ -47,17 +63,30 @@ def adjust_lightness(color, amount=0.5):
     >> lighten_color('#F034A3', 0.6)
     >> lighten_color((.3,.55,.1), 0.5)
     """
-    # To get RGB from input
-    from matplotlib.colors import cnames, to_rgb
-    # To adjust in HLS
-    import colorsys
-    try:
-        color_code = cnames[color]
-    except KeyError:
-        color_code = color
-    color_code = colorsys.rgb_to_hls(*to_rgb(color_code))
+    color_hex = to_hex(color)
+    color_hls = colorsys.rgb_to_hls(*to_rgb(color_hex))
     return colorsys.hls_to_rgb(
-        color_code[0],  # Hue remains
-        max(0, min(1, amount * color_code[1])),  #
-        color_code[2]
+        color_hls[0],  # Hue remains
+        max(0, min(1, amount * color_hls[1])),  #
+        color_hls[2]
     )
+
+# From https://stackoverflow.com/a/50230769/10913212
+def nonlinear_cmap(step_colors, step_values, name=None):
+    """
+    Generates a non-linear matplolib color map. colormap meaning a gradient for color coding values
+    in a range (e.g for heat map), and non-linear meaning each color takes over a differently-sized
+    chunk of the gradient.
+
+    :param step_colors: an ordered list of colors for each "step" on the gradient
+    :param step_values: values on the unit interval matching where each step should be on the graient
+    :return: a :class:`matplotlib.color.LinearSegmentedColormap` which can be used as a color map for matplotlib and
+    seaborn methods
+    """
+    color_dict = {'red': (), 'green': (), 'blue': ()}
+    for step_color, step_value in zip(step_colors, step_values):
+        rgb = hex2color(to_hex(step_color))
+        color_dict['red'] = color_dict['red'] + ((step_value, rgb[0], rgb[0]),)
+        color_dict['green'] = color_dict['green'] + ((step_value, rgb[1], rgb[1]),)
+        color_dict['blue'] = color_dict['blue'] + ((step_value, rgb[2], rgb[2]),)
+    return LinearSegmentedColormap(name, color_dict)
