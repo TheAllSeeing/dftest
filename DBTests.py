@@ -324,6 +324,8 @@ class ColumnResults:
 
 
 class DBTestResults:
+    plt = plt
+
     def __init__(self, dataframe, timestamp, results: List[TestResult], config: Config):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
