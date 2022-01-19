@@ -4,7 +4,8 @@ from __future__ import annotations
 # For creating a test for a specific column out of a more generic one
 import datetime
 # For compressing generic column, row tests to individual column
-from functools import partial
+import operator
+from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better typehinting
@@ -14,9 +15,11 @@ from typing import List, Callable
 import matplotlib
 # For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
 # attribute). from-import not used to make the purpose of these methods more explicit.
+import numpy as np
 import pandas
 # For displaying coverage and result graphs
 import pandasgui
+import seaborn
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
@@ -171,34 +174,26 @@ class ColumnResults:
     in pandasgui.
     """
 
-    def __init__(self, column: str, results: List[TestResult], num_rows: int, config: ColumnConfig):
+    def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, config: ColumnConfig):
         """
         :param column: the name of the column
         :param results: a list of each :class:`TestResult` result from the tests ran over the columns.
-        :param num_rows: the number of dataframe rows where the column was tested
+        :param dataframe: the tested dataframe
+        :param config: the configuration set for this column
         """
         self.column = column
         self.results = results
-        self.num_rows = num_rows
         self.config = config
-        self.invalid_rows = []
-        self.figures = []
-
-        # Store a set of the invalid rows. Since rows are not hashable this is not
-        # actually a set, and a list of row numbers is instead used to ensure distinction.
-        invalid_row_nums = []
-        for result in results:
-            if not result.success:
-                for i, row in result.invalid_rows_tuples():
-                    if i not in invalid_row_nums:
-                        # Can't check row list directly, since the truth value of a Series is ambiguous.
-                        self.invalid_rows.append(row)
-                        invalid_row_nums.append(i)
+        self.dataframe = dataframe
+        try:
+            self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
+        except TypeError: # Reduce throws a TypeError if it's given an empty list.
+            self.invalid_row_index = set()
 
     @property
     def valid(self):
         """
-        Whether or not the column completely passes each of the tests ran.
+        Whether the column completely passes each of the tests ran.
         """
         return all(result.success for result in self.results)
 
@@ -210,11 +205,15 @@ class ColumnResults:
         return len(self.results)
 
     @property
+    def num_rows(self):
+        return len(self.dataframe.index)
+
+    @property
     def num_invalid(self):
         """
         The number of rows where cells in this column failed at least one test.
         """
-        return len(self.invalid_rows)
+        return len(self.invalid_row_index)
 
     @property
     def num_valid(self):
@@ -233,26 +232,34 @@ class ColumnResults:
         :returns: the graph's pyplot figure
         """
         labels = [result.from_test.name for result in self.results]
-        valids = [result.num_valid for result in self.results]
-        invalids = [result.num_invalid for result in self.results]
+        valid_nums = [result.num_valid for result in self.results]
+        valid_colors = [self.config.colorcode(valid_num/self.num_rows) for valid_num in valid_nums]
+        invalid_nums = [result.num_invalid for result in self.results]
+        invalid_colors = [utils.adjust_lightness(valid_color, 0.4) for valid_color in valid_colors]
 
         fig, axis = plt.subplots()
-        axis.bar(labels, valids, label='Valid Rows', color='green')
-        axis.bar(labels, invalids, label='Invalid Rows', bottom=valids, color='red')
+        axis.bar(labels, valid_nums, label='Valid Rows', color=valid_colors)
+        axis.bar(labels, invalid_nums, label='Invalid Rows', bottom=valid_nums, color=invalid_colors)
         axis.legend()
         return fig
 
-    def graph_tests_success_colored(self) -> plt.Figure:
-        labels = [result.from_test.name for result in self.results]
-        valid_rates = [result.num_valid / self.num_rows for result in self.results]
-        colors = [self.config.colorcode(valid_rate) for valid_rate in valid_rates]
+    def graph_validity_heatmap(self):
+        test_labels = [result.from_test.name for result in self.results]
+        data = np.array([result.num_valid/self.num_rows for result in self.results])
+        fig, ax = plt.subplots()
+        colors = ['red', 'orange', 'yellow', 'blue', 'green']
+        color_steps = [self.config.integrity_levels[color] for color in colors]
+        color_map = utils.nonlinear_cmap(colors, color_steps)
 
-        fig, axis = plt.subplots()
+        seaborn.heatmap([data],
+                        vmin=0, vmax=1,
+                        square=True,
+                        cmap=color_map,
+                        cbar_kws=dict(use_gridspec=False, location="bottom"),
+                        annot=True, fmt='.1%',
+                        xticklabels=test_labels, yticklabels=False)
 
-        axis.bar(labels, valid_rates, label='Valid Rows', color=colors)
-        axis.legend()
-        return fig
-
+        for t in ax.texts: t.set_text(t.get_text() + " %")
     def graph_validity(self) -> plt.Figure:
         """
         Generates a pie graph of the column validity as a pyplot figure
@@ -268,17 +275,18 @@ class ColumnResults:
         plt.pie(data, autopct=utils.pie_autopct(data), colors=['green', 'red'])
         fig.legend(labels)
         fig.suptitle(self.column + ' Validity')
-
         return fig
 
-    def open_invalid_rows(self, index):
+    def open_invalid_rows(self, index, sample_size: int = None):
         """
         Opens the invalid rows at the specified columns in the pandasgui interface.
 
         :param index: an iterable of the columns to include. This will always include this column.
+        :param sample_size: if specified, opens the first n invalid rows.
         """
+        sample_size = self.num_invalid if sample_size is None else sample_size
         index = set(index).union({self.column})
-        failures = [result.get_failures(index) for result in self.results]
+        failures = [result.get_invalid_rows(self.dataframe)[index].iloc[:sample_size] for result in self.results]
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
         return pandas_proc.start()
 
@@ -288,7 +296,7 @@ class ColumnResults:
         and print each test, the valid:rows ratio for it and row s where it failed (up to 10)
 
         :param columns_to_include: columns to include when printing rows of failure.
-        By default only row number and this column are printed.
+        By default, only row number and this column are printed.
 
         :param column_number: specify a column index in the printed title.
 
@@ -299,34 +307,56 @@ class ColumnResults:
         for j, result in enumerate(self.results, 1):
             print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
             print(f'{result.num_valid}/{self.num_rows} '
-                  f'({round(self.num_valid / self.num_rows * 100, 2)}%).')
+                  f'({round(result.num_valid / self.num_rows * 100, 2)}%).')
 
             pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
 
             if print_all_failed:
-                to_print = result.invalid_rows
+                to_print = result.get_invalid_rows(self.dataframe)
             else:
-                to_print = result.invalid_rows[:10]
+                to_print = result.get_invalid_rows(self.dataframe).iloc[:10]
 
-            for row in to_print:
-                columns_to_include = set() if columns_to_include is None else set(columns_to_include)
-                columns_to_include = columns_to_include.union({self.column})
-                print(row[columns_to_include].to_frame().T.to_string(header=False))
-            if not print_all_failed and len(result.invalid_rows) > 10:
+            columns_to_include = set() if columns_to_include is None else set(columns_to_include)
+            columns_to_include = columns_to_include.union({self.column})
+            if not len(to_print.index) == 0:
+                print(to_print[columns_to_include])
+            if not print_all_failed and result.num_invalid > 10:
                 print('...')
 
             print()
 
 
 class DBTestResults:
+    plt = plt
+
     def __init__(self, dataframe, timestamp, results: List[TestResult], config: Config):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
         self.results = results
         self.config = config
 
-        # self.cols_checked = reduce(set.union, cols_checked)
         self.cols_checked = set().union(*(result.columns_tested for result in results))
+        self.invalid_row_index = set().union(*(result.invalid_row_index for result in results))
+
+    @property
+    def num_rows(self):
+        """Number of rows tested"""
+        return len(self.dataframe.index)
+
+    @property
+    def num_invalid(self):
+        """Number of rows that came as invalid under at least one test"""
+        return len(self.invalid_row_index)
+
+    @property
+    def num_valid(self):
+        """Number of rows that passes all tests ran"""
+        return self.num_rows - self.num_invalid
+
+    @property
+    def column_results(self):
+        """The list of :class:`ColumnResults` objects for each column in the tested dataframe"""
+        return [self.get_column_results(column) for column in self.dataframe.columns]
 
     def get_column_results(self, column: str) -> ColumnResults:
         """
@@ -334,7 +364,42 @@ class DBTestResults:
         :return: a :class:`ColumnResults` object containing all the results for tests that tested the specified column
         """
         res_list = [result for result in self.results if column in result.columns_tested]
-        return ColumnResults(column, res_list, len(self.dataframe.index), self.config.get_column_config(column))
+        return ColumnResults(column, res_list, self.dataframe, self.config.get_column_config(column))
+
+    def graph_validity_heatmap(self):
+        """
+        Generated a 1D heatmap of the columns by validity, color coded by the default integrity levels
+        dictionary set for the database.
+
+        In order for
+
+        :return: The pyplot figure containing the graph
+        """
+        test_labels = [column for column in self.dataframe.columns] + ['Dataframe']
+        data = np.array([result.num_valid / self.num_rows for result in self.column_results] + [self.num_valid/self.num_rows] )
+        fig, ax = plt.subplots()
+        colors = ['red', 'orange', 'yellow', 'blue', 'green']
+        color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
+        color_map = utils.nonlinear_cmap(colors, color_steps)
+
+        seaborn.heatmap([data],
+                        vmin=0, vmax=1,
+                        cmap=color_map,
+                        annot=True, fmt='.1%',
+                        annot_kws={'rotation': 90},
+                        xticklabels=test_labels, yticklabels=False)
+
+        for t in ax.texts: t.set_text(t.get_text() + " %")
+        return fig
+
+    def graph_db_validity_pie(self):
+        labels = ['Valid', 'Invalid']
+        data = [self.num_valid, self.num_invalid]
+        colors = ['green', 'red']
+        fig = plt.figure()
+        plt.pie(data, colors=colors, autopct=utils.pie_autopct(data))
+        fig.legend(labels)
+
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
