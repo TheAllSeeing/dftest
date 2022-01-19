@@ -1,59 +1,37 @@
-import re
-from typing import Any, List
+import pandas
+from matplotlib import pyplot
 
-from pandas import Series
+import test_funcs
+from DBTests import DBTests
 
+if __name__ == '__main__':
+    df = pandas.read_csv('College.csv')  # Example dataset taken from  the book An Introduction to Statistical Learning
+    tests = DBTests(df)
 
-def range_test(test_range: range, left_inclusive=False, right_inclusive=True, cast_as: type = None):
-    def test(column, row):
-        value = row[column] if cast_as is None else cast_as(row[column])
-        return test_range.start < value < test_range.stop \
-               or left_inclusive and value == test_range.start \
-               or right_inclusive and value == test_range.stop
+    with open('config.json') as conf_file:
+        tests.load_config(conf_file)
 
-    return test
+    # bool_cols = ['Private']
+    # tests.add_generic_test(test_funcs.boolean_test, name='Yes/No Compliance', columns=bool_cols)
+    #
+    # natural_cols = set(df.columns) - {'Private', 'S.F.Ratio', 'Unnamed: 0'}
+    # tests.add_generic_test(test_funcs.nonzero_natural_test, name='Integer Compliance', columns=natural_cols)
+    #
+    # perc_cols = ['Top10perc', 'Top25perc', 'PhD', 'Terminal', 'perc.alumni', 'Grad.Rate']
+    # tests.add_generic_test(test_funcs.percent_test, name='Percent Compliance', columns=perc_cols)
+    #
+    # tests.add_test(test_funcs.reasonable_room_cost_range_test)
+    # tests.add_test(test_funcs.apps_accept_enroll_test, name='Apps > Accept > Enroll')
+    tests.add_test(test_funcs.sane_spending_test, name='Sane Spending')
 
+    results = tests.run()
+    # results.print()
+    # results.show_summary()
+    res = results.get_column_results('Personal')
+    res.print()
+    # results.
+    # results.get_column_results('Personal').tests_heatmap()
+    # res.graph_db_validity_pie()
+    # res.plt.show()
 
-def nonequal_test(value: Any, column=None):
-    if column is None:
-        return lambda column, row: row[column] != value
-    return lambda row: row[column] != value
-
-
-def in_list_test(lst: List[Any], column=None):
-    if column is None:
-        return lambda column, row: row[column] in lst
-    return lambda row: row[column] in lst
-
-
-def match_test(regex: str, column=None):
-    if column is None:
-        return lambda column, row: re.compile(regex)
-    return lambda row: re.compile(regex)
-
-
-is_fraction = range_test(range(0, 1), left_inclusive=True, right_inclusive=True)
-is_not_null = nonequal_test(None)
-
-
-def is_integer(column: str, row: Series):
-    return str(row[column]).isdigit()
-
-
-def is_float(column: str, row: Series):
-    try:
-        float(row[column])
-        return True
-    except ValueError:
-        return False
-
-
-def is_positive_integer(column: str, row: Series):
-    return row[column].isdigit() and int(row[column]) > 0
-
-
-def is_positive_float(column: str, row: Series):
-    try:
-        return float(row[column]) > 0
-    except ValueError:
-        return False
+    # print(MixedDataTypes().add_condition_rare_type_ratio_not_in_range().run(df))
