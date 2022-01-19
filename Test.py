@@ -90,13 +90,13 @@ class Test:
         :return: the test result as a :class:`TestResult` object.
         """
         columns_tested = set()
-        rows_of_failure = []
+        invalid_row_index = []
         for i, row in dataframe_rows:
             row_success, columns_tested_in_row = self.test_row(row)
             if not row_success:
-                rows_of_failure.append((i, row))
+                invalid_row_index.append(i)
             columns_tested = columns_tested.union(columns_tested_in_row)
-        return TestResult(self, columns_tested, len(dataframe_rows), rows_of_failure)
+        return TestResult(self, columns_tested, len(dataframe_rows), invalid_row_index)
 
 
 class TestResult:
@@ -104,7 +104,7 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows: List[Tuple[int, Series]]):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows_index: List[Hashable]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
@@ -113,22 +113,19 @@ class TestResult:
         self.from_test = origin_test
         self.columns_tested = columns_tested
         self.num_tested = num_tested
-        self._invalid_rows = invalid_rows
-
-    @property
-    def invalid_rows(self):
-        return [row for i, row in self._invalid_rows]
+        self.invalid_row_index = invalid_rows_index
 
     @property
     def success(self):
-        return len(self.invalid_rows) == 0
+        """Whether the dataframe passed the test completely"""
+        return len(self.invalid_row_index) == 0
 
     @property
     def num_invalid(self):
         """
         Number of dataframe rows that failed the test
         """
-        return len(self.invalid_rows)
+        return len(self.invalid_row_index)
 
     @property
     def num_valid(self):
@@ -137,16 +134,7 @@ class TestResult:
         """
         return self.num_tested - self.num_invalid
 
-    def invalid_rows_tuples(self):
-        return self._invalid_rows
-
-    def get_failures(self, index: Union[Index, Set[str]], include=None) -> DataFrame:
-        failure_df = DataFrame(zip(*[row[index] for row in self.invalid_rows])).T
-        failure_df.columns = index
-
-        if include is not None:
-            failure_df = failure_df[include]
-
-        return failure_df
+    def get_invalid_rows(self, src_dataframe: DataFrame) -> DataFrame:
+        return src_dataframe.iloc[self.invalid_row_index]
 
 
