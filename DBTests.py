@@ -361,6 +361,41 @@ class DBTestResults:
         res_list = [result for result in self.results if column in result.columns_tested]
         return ColumnResults(column, res_list, self.dataframe, self.config.get_column_config(column))
 
+    def graph_validity_heatmap(self):
+        """
+        Generated a 1D heatmap of the columns by validity, color coded by the default integrity levels
+        dictionary set for the database.
+
+        In order for
+
+        :return: The pyplot figure containing the graph
+        """
+        test_labels = [column for column in self.dataframe.columns] + ['Dataframe']
+        data = np.array([result.num_valid / self.num_rows for result in self.column_results] + [self.num_valid/self.num_rows] )
+        fig, ax = plt.subplots()
+        colors = ['red', 'orange', 'yellow', 'blue', 'green']
+        color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
+        color_map = utils.nonlinear_cmap(colors, color_steps)
+
+        seaborn.heatmap([data],
+                        vmin=0, vmax=1,
+                        cmap=color_map,
+                        annot=True, fmt='.1%',
+                        annot_kws={'rotation': 90},
+                        xticklabels=test_labels, yticklabels=False)
+
+        for t in ax.texts: t.set_text(t.get_text() + " %")
+        return fig
+
+    def graph_db_validity_pie(self):
+        labels = ['Valid', 'Invalid']
+        data = [self.num_valid, self.num_invalid]
+        colors = ['green', 'red']
+        fig = plt.figure()
+        plt.pie(data, colors=colors, autopct=utils.pie_autopct(data))
+        fig.legend(labels)
+
+
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
         Produces a coverage report of the tests done — how many of the columns were tested, how many were valid,
