@@ -147,7 +147,7 @@ class DBTests:
             func_name = test_func.__name__ if name is None else name
             self.add_test(DataframeTest(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns))
 
-    def add_dtype_test(self, test_func: Callable[[Series, str], bool], dtypes: List[str], name: str = None,
+    def add_dtype_test(self, test_func: Callable[[str, Series], bool], dtypes: List[str], name: str = None,
                        column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to columns of a certain dtype or dtypes. Instead of as in :func:`add_test`, the
@@ -210,7 +210,7 @@ class ColumnResults:
         self.dataframe = dataframe
         try:
             self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
-        except TypeError: # Reduce throws a TypeError if it's given an empty list.
+        except TypeError:  # Reduce throws a TypeError if it's given an empty list.
             self.invalid_row_index = set()
 
     @property
@@ -256,7 +256,7 @@ class ColumnResults:
         """
         labels = [result.from_test.name for result in self.results]
         valid_nums = [result.num_valid for result in self.results]
-        valid_colors = [self.config.colorcode(valid_num/self.num_rows) for valid_num in valid_nums]
+        valid_colors = [self.config.colorcode(valid_num / self.num_rows) for valid_num in valid_nums]
         invalid_nums = [result.num_invalid for result in self.results]
         invalid_colors = [utils.adjust_lightness(valid_color, 0.4) for valid_color in valid_colors]
 
@@ -268,7 +268,7 @@ class ColumnResults:
 
     def graph_validity_heatmap(self):
         test_labels = [result.from_test.name for result in self.results]
-        data = np.array([result.num_valid/self.num_rows for result in self.results])
+        data = np.array([result.num_valid / self.num_rows for result in self.results])
         fig, ax = plt.subplots()
         colors = ['red', 'orange', 'yellow', 'blue', 'green']
         color_steps = [self.config.integrity_levels[color] for color in colors]
@@ -283,6 +283,7 @@ class ColumnResults:
                         xticklabels=test_labels, yticklabels=False)
 
         for t in ax.texts: t.set_text(t.get_text() + " %")
+
     def graph_validity(self) -> plt.Figure:
         """
         Generates a pie graph of the column validity as a pyplot figure
@@ -399,7 +400,8 @@ class DBTestResults:
         :return: The pyplot figure containing the graph
         """
         test_labels = [column for column in self.dataframe.columns] + ['Dataframe']
-        data = np.array([result.num_valid / self.num_rows for result in self.column_results] + [self.num_valid/self.num_rows] )
+        data = np.array(
+            [result.num_valid / self.num_rows for result in self.column_results] + [self.num_valid / self.num_rows])
         fig, ax = plt.subplots()
         colors = ['red', 'orange', 'yellow', 'blue', 'green']
         color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
@@ -422,7 +424,6 @@ class DBTestResults:
         fig = plt.figure()
         plt.pie(data, colors=colors, autopct=utils.pie_autopct(data))
         fig.legend(labels)
-
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """

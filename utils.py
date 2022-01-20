@@ -61,6 +61,7 @@ def to_hex(color):
     except KeyError:
         return color
 
+
 # From https://stackoverflow.com/a/49601444/10913212
 def adjust_lightness(color, amount=0.5):
     """
@@ -79,6 +80,7 @@ def adjust_lightness(color, amount=0.5):
         max(0, min(1, amount * color_hls[1])),  #
         color_hls[2]
     )
+
 
 # From https://stackoverflow.com/a/50230769/10913212
 def nonlinear_cmap(step_colors, step_values, name=None):
