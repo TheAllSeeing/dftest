@@ -2,14 +2,19 @@ import pandas
 from matplotlib import pyplot
 
 import test_funcs
+import tests
 from DBTests import DBTests
 
 if __name__ == '__main__':
-    df = pandas.read_csv('College.csv')  # Example dataset taken from  the book An Introduction to Statistical Learning
-    tests = DBTests(df)
+    # Download from https://github.com/metmuseum/openaccess/raw/master/MetObjects.csv
+    df = pandas.read_csv('MetObjects.csv')
+    dbtests = DBTests(df)
 
-    with open('config.json') as conf_file:
-        tests.load_config(conf_file)
+    # with open('config.json') as conf_file:
+    #     tests.load_config(conf_file)
+
+    dbtests.add_generic_db_test(tests.is_not_null, column_autodetect=True)
+
 
     # bool_cols = ['Private']
     # tests.add_generic_test(test_funcs.boolean_test, name='Yes/No Compliance', columns=bool_cols)
@@ -22,16 +27,16 @@ if __name__ == '__main__':
     #
     # tests.add_test(test_funcs.reasonable_room_cost_range_test)
     # tests.add_test(test_funcs.apps_accept_enroll_test, name='Apps > Accept > Enroll')
-    tests.add_test(test_funcs.sane_spending_test, name='Sane Spending')
+    # dbtests.add_test(test_funcs.sane_spending_test, name='Sane Spending')
 
-    results = tests.run()
+    results = dbtests.run()
     # results.print()
     # results.show_summary()
-    res = results.get_column_results('Personal')
-    res.print()
+    # res = results.get_column_results('Personal')
+    # res.print()
     # results.
     # results.get_column_results('Personal').tests_heatmap()
-    # res.graph_db_validity_pie()
-    # res.plt.show()
+    results.graph_validity_heatmap()
+    results.plt.show()
 
     # print(MixedDataTypes().add_condition_rare_type_ratio_not_in_range().run(df))

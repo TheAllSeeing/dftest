@@ -1,20 +1,24 @@
 # Sets type hints to act as string so I can reference a class (in a type hint) before it's defined.
 from __future__ import annotations
+
 # For autodetecting accessed columns as a test run, and set the trace function back afterwards.
 from sys import settrace, gettrace
 # For better typehinting
-from typing import List, Callable, Tuple, Set, Hashable, Union
+from typing import List, Callable, Tuple, Set, Hashable, Union, Any
+
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
-from pandas import DataFrame, Series, Index
+from pandas import DataFrame, Series
+
+from utils import TestFunc
 
 
-class Test:
+class BaseTest:
     """
     A named predicate to enact on the rows of a :class:`pandas.DataFrame` which test the
     validity of one or more of its columns.
     """
 
-    def __init__(self, test: Callable[[Series], bool], name: str = None, tested_columns: List[str] = None,
+    def __init__(self, predicate: TestFunc, name: str = None, tested_columns: List[str] = None,
                  ignore_columns: List[str] = None):
         """
         :class:`Test` class constructor.
@@ -23,7 +27,7 @@ class Test:
         the database. This is fairly crude though, and detects any columns which the test accesses.
         The `tested_columns` and `ignore_columns` parameters can be used to override or modify this behaviour.
 
-        :param test: the predicate which will be used to test the rows of the dataframe in this test.
+        :param predicate: the predicate which will be used to test the rows of the dataframe in this test.
 
         :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
         property. By default (and if given `None`) this will be set to the name of the predicate function.
@@ -34,26 +38,26 @@ class Test:
         :param ignore_columns: columns to ignore in tested-columns autodetection. If `tested_columns` is set,
         columns that appear in it and in here will be ignored also.
         """
-        self.test = test
+        self.predicate = predicate
 
         if name is None:
-            self.name = self.test.__name__
+            self.name = self.predicate.__name__
         else:
             self.name = name
 
         self.tested_columns = set() if tested_columns is None else set(tested_columns)
         self.ignore_columns = set() if ignore_columns is None else set(ignore_columns)
 
-    def test_row(self, row: Series) -> Tuple[bool, Set[str]]:
+    def test(self, test_target: Any) -> Tuple[Union[bool, List[Hashable]], Set[str]]:
         """
-        :param row: the row to test
+        :param test_target: the row to test
         :returns: a tuple of the boolean test result and the set of columns that were tested.
         """
 
         # If tested_columns is set then no autodetection of tested columns is needed, just test the row
         # and return the defined tested columns (minus ones specified to ignore).
         if len(self.tested_columns) > 0:
-            return self.test(row), self.tested_columns.difference(self.ignore_columns)
+            return self.predicate(test_target), self.tested_columns.difference(self.ignore_columns)
 
         # Else, the autodetecting tested columns is needed.
         # This is done via initializing an empty accessed_columns
@@ -67,8 +71,8 @@ class Test:
         def add_accessed_columns(frame, event, arg):
             # Run on *calls* of *__getitem__* with a *Series* object *which is the test row*
             if event == 'call' \
-                    and frame.f_code == Series.__getitem__.__code__ \
-                    and frame.f_locals['self'].equals(row):
+                    and frame.f_code in [Series.__getitem__.__code__, DataFrame.__getitem__.__code__] \
+                    and frame.f_locals['self'].equals(test_target):
                 accessed_columns.add(frame.f_locals['key'])
 
         original_trace = gettrace()
@@ -76,11 +80,28 @@ class Test:
 
         # Make sure to eventually set the trace function back.
         try:
-            test_result = self.test(row)
+            test_result = self.predicate(test_target)
         finally:
             settrace(original_trace)
 
         return test_result, accessed_columns.difference(self.ignore_columns)
+
+    def run(self, dataframe: DataFrame) -> TestResult:
+        pass
+
+
+class RowTest(BaseTest):
+    """
+    A named predicate to enact on the rows of a :class:`pandas.DataFrame` which test the
+    validity of one or more of its columns.
+    """
+
+    def __init__(self, predicate: Callable[[Series], bool], name: str = None, tested_columns: List[str] = None,
+                 ignore_columns: List[str] = None):
+        super(RowTest, self).__init__(predicate, name, tested_columns, ignore_columns)
+
+    def test(self, row: Series) -> Tuple[bool, Set[str]]:
+        return super(RowTest, self).test(row)
 
     def run(self, dataframe_rows: List[Tuple[Hashable, Series]]) -> TestResult:
         """
@@ -92,11 +113,24 @@ class Test:
         columns_tested = set()
         invalid_row_index = []
         for i, row in dataframe_rows:
-            row_success, columns_tested_in_row = self.test_row(row)
+            row_success, columns_tested_in_row = self.test(row)
             if not row_success:
                 invalid_row_index.append(i)
             columns_tested = columns_tested.union(columns_tested_in_row)
         return TestResult(self, columns_tested, len(dataframe_rows), invalid_row_index)
+
+
+class DataframeTest(BaseTest):
+    def __init__(self, test: Callable[[DataFrame], List[Hashable]], name: str = None, tested_columns: List[str] = None,
+                 ignore_columns: List[str] = None):
+        super(DataframeTest, self).__init__(test, name, tested_columns, ignore_columns)
+
+    def test(self, dataframe: DataFrame) -> Tuple[List[Hashable], Set[str]]:
+        return super(DataframeTest, self).test(dataframe)
+
+    def run(self, dataframe: DataFrame) -> TestResult:
+        invalid_index, columns_tested = self.test(dataframe)
+        return TestResult(self, columns_tested, len(dataframe.index), invalid_index)
 
 
 class TestResult:
@@ -104,11 +138,12 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, invalid_rows_index: List[Hashable]):
+    def __init__(self, origin_test: BaseTest, columns_tested: Set[str], num_tested: int,
+                 invalid_rows_index: List[Hashable]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
-        :param invalid_rows: a list of rows where the test failed.
+        :param invalid_rows_index: a list of indexes for the rows where the test failed.
         """
         self.from_test = origin_test
         self.columns_tested = columns_tested
@@ -136,5 +171,3 @@ class TestResult:
 
     def get_invalid_rows(self, src_dataframe: DataFrame) -> DataFrame:
         return src_dataframe.iloc[self.invalid_row_index]
-
-

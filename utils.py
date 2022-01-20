@@ -1,7 +1,16 @@
 # To get RGB from input
+from typing import List, Union, Any
+
 from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
+# For custom type hints
+from typing_extensions import Protocol
 # To adjust in HLS
 import colorsys
+
+
+class TestFunc(Protocol):
+    def __call__(self, *args: Any) -> Union[bool, List[int]]:
+        pass
 
 
 def pie_autopct(data):

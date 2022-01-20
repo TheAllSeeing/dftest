@@ -1,7 +1,8 @@
 import re
 from typing import Any, List
 
-from pandas import Series
+import numpy as np
+from pandas import Series, DataFrame
 
 
 def range_test(test_range: range, left_inclusive=False, right_inclusive=True, cast_as: type = None):
@@ -11,13 +12,17 @@ def range_test(test_range: range, left_inclusive=False, right_inclusive=True, ca
                or left_inclusive and value == test_range.start \
                or right_inclusive and value == test_range.stop
 
+    test.__name__ = f'Column in {"[" if left_inclusive else "("}{test_range.start}, {test_range.stop}{"]" if right_inclusive else ")"}'
     return test
 
 
-def nonequal_test(value: Any, column=None):
+def nonequal_test(value: Any, column=None, name=None):
     if column is None:
-        return lambda column, row: row[column] != value
-    return lambda row: row[column] != value
+        func = lambda column, df: [i for i, cell in enumerate((df[column] != value).values) if cell]
+    else:
+        func = lambda df:  [i for i, cell in enumerate((df[column] != value).values) if cell]
+    func.__name__ = f'{"Column" if column is None else column} not {str(value)}' if name is None else name
+    return func
 
 
 def in_list_test(lst: List[Any], column=None):
@@ -32,8 +37,11 @@ def match_test(regex: str, column=None):
     return lambda row: re.compile(regex)
 
 
+def is_not_null(column: str, dataframe: DataFrame):
+    return [i for i, isnull in enumerate(dataframe[column].isnull().values) if isnull]
+
+
 is_fraction = range_test(range(0, 1), left_inclusive=True, right_inclusive=True)
-is_not_null = nonequal_test(None)
 
 
 def is_integer(column: str, row: Series):
@@ -57,4 +65,3 @@ def is_positive_float(column: str, row: Series):
         return float(row[column]) > 0
     except ValueError:
         return False
-
