@@ -397,9 +397,8 @@ class DBTestResults:
 
         fig_b = plt.figure()
         valid_data = [self.num_valid, self.num_invalid]
-        plt.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data))
+        plt.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
         plt.show()
-        fig_b.legend(['Valid', 'Invalid'])
 
         return fig_a, fig_b
 
