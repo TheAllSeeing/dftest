@@ -332,7 +332,7 @@ class DBTestResults:
 
     @property
     def num_cols_untested(self):
-        return len(self.dataframe.columns) - self.num_cols_untested
+        return len(self.dataframe.columns) - self.num_cols_tested
 
     @property
     def num_invalid(self):
