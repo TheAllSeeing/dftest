@@ -8,14 +8,15 @@ from typing import List, Callable, Tuple, Set, Hashable, Union, Any
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
 
+
 class Test:
     """
     A named predicate to enact on the rows of a :class:`pandas.DataFrame` which test the
     validity of one or more of its columns.
     """
 
-    def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], name: str = None, tested_columns: List[str] = None,
-                 ignore_columns: List[str] = None):
+    def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], name: str = None,
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None):
         """
         :class:`Test` class constructor.
 

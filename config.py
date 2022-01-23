@@ -83,8 +83,8 @@ class Config:
 
     def _dict_to_column_config(self, column_name: str, column_dict: dict) -> ColumnConfig:
 
+        raw_dtype = column_dict.get('type', self.get_default_type())
         try:
-            raw_dtype = column_dict.get('type', self.get_default_type())
             data_type: type = getattr(builtins, raw_dtype)
         except AttributeError:
             raise ValueError(f'Invalid config for {column_name}: "type" attribute "{raw_dtype}"')
