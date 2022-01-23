@@ -390,17 +390,17 @@ class DBTestResults:
     def graph_summary(self):
         colors = ['green', 'red']
 
-        fig_a = plt.figure()
+        fig, (ax1, ax2) = plt.subplots(2)
+
         tested_data = [self.num_cols_tested, self.num_cols_untested]
-        plt.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
-        fig_a.legend(['Tested', 'Untested'])
+        ax1.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
+        ax1.legend(['Tested', 'Untested'])
 
-        fig_b = plt.figure()
         valid_data = [self.num_valid, self.num_invalid]
-        plt.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
-        plt.show()
+        ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
+        ax2.legend(["Valid", 'Invalic'])
 
-        return fig_a, fig_b
+        return fig
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
