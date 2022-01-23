@@ -388,7 +388,7 @@ class DBTestResults:
         colors = ['green', 'red']
 
         fig = plt.figure()
-        tested_data = [self.num_cols_tested, self.num_cols_untested],
+        tested_data = [self.num_cols_tested, self.num_cols_untested]
         plt.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
         fig.legend(['Tested', 'Untested'])
 
