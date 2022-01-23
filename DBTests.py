@@ -175,6 +175,10 @@ class ColumnResults:
             self.invalid_row_index = set()
 
     @property
+    def tested(self):
+        return len(self.results) > 0
+
+    @property
     def valid(self):
         """
         Whether the column completely passes each of the tests ran.
@@ -369,9 +373,12 @@ class DBTestResults:
 
         :return: The pyplot figure containing the graph
         """
-        test_labels = [column for column in self.dataframe.columns] + ['Dataframe']
+        test_labels = [column for column in self.dataframe.columns if self.get_column_results(column).tested] \
+                      + ['Dataframe']
         data = np.array(
-            [result.num_valid / self.num_rows for result in self.column_results] + [self.num_valid / self.num_rows])
+            [result.num_valid / self.num_rows for result in self.column_results if result.tested]
+            + [self.num_valid / self.num_rows]
+        )
         fig, ax = plt.subplots()
         colors = ['red', 'orange', 'yellow', 'blue', 'green']
         color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
