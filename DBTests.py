@@ -326,6 +326,15 @@ class DBTestResults:
         return len(self.dataframe.index)
 
     @property
+    def num_cols_tested(self):
+        """Number of columns tested"""
+        return len(self.cols_checked)
+
+    @property
+    def num_cols_untested(self):
+        return len(self.dataframe.columns) - self.num_cols_untested
+
+    @property
     def num_invalid(self):
         """Number of rows that came as invalid under at least one test"""
         return len(self.invalid_row_index)
@@ -375,13 +384,19 @@ class DBTestResults:
         for t in ax.texts: t.set_text(t.get_text() + " %")
         return fig
 
-    def graph_db_validity_pie(self):
-        labels = ['Valid', 'Invalid']
-        data = [self.num_valid, self.num_invalid]
+    def graph_summary(self):
         colors = ['green', 'red']
+
         fig = plt.figure()
-        plt.pie(data, colors=colors, autopct=utils.pie_autopct(data))
-        fig.legend(labels)
+        tested_data = [self.num_cols_tested, self.num_cols_untested],
+        plt.pie(tested_data, colors=colors, autopct=utils.pie_autopct(tested_data))
+        fig.legend(['Tested', 'Untested'])
+
+        fig = plt.figure()
+        valid_data = [self.num_valid, self.num_invalid]
+        plt.pie(valid_data, colors=colors, autopct=utils.pie_autopct(valid_data))
+        plt.show()
+        fig.legend(['Valid', 'Invalid'])
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
@@ -411,14 +426,3 @@ class DBTestResults:
                         and (column in self.cols_checked and not column_res.valid or show_valid_cols):
                     column_res.print(columns_to_include=[self.dataframe.columns[0]], column_number=i,
                                      print_all_failed=print_all_failed)
-
-    def show_summary(self):
-        num_rows, num_cols = self.dataframe.shape
-        num_checked = len(self.cols_checked)
-        num_valid = sum(1 for column in self.cols_checked if self.get_column_results(column).valid)
-
-        plt.figure(1)
-        plt.pie([num_checked, num_cols - num_checked], labels=['Tested', 'Untested'])
-        plt.figure(2)
-        plt.pie([num_valid, num_cols - num_valid], labels=['Valid', 'Invalid'])
-        plt.show()
