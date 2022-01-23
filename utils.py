@@ -8,11 +8,6 @@ from typing_extensions import Protocol
 import colorsys
 
 
-class TestFunc(Protocol):
-    def __call__(self, *args: Any) -> Union[bool, List[int]]:
-        pass
-
-
 def pie_autopct(data):
     """
     Generates a function for automatic labeling of pie charts by number and percent values

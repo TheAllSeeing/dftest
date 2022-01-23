@@ -9,7 +9,7 @@ from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better typehinting
-from typing import List, Callable
+from typing import List, Callable, Hashable
 
 # For graph graphics
 import matplotlib
@@ -25,7 +25,7 @@ from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 
 import utils
-from Test import RowTest, TestResult, BaseTest, DataframeTest
+from Test import TestResult, Test
 from config import Config, ColumnConfig
 
 matplotlib.use('TkAgg')
@@ -45,8 +45,7 @@ class DBTests:
 
     def __init__(self, df: DataFrame):
         self.dataframe: DataFrame = df
-        self.row_tests: List[RowTest] = []
-        self.dataframe_tests: List[DataframeTest] = []
+        self.tests: List[Test] = []
         self.columns_tested = set()
         self.config = Config()
 
@@ -80,7 +79,8 @@ class DBTests:
         """
         self.config = Config(config_file)
 
-    def add_test(self, test: BaseTest):
+    def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None):
         """
         Add a test to the Testing Suite.
 
@@ -88,42 +88,21 @@ class DBTests:
         the database. This is fairly crude though, and detects any columns which the test accesses.
         The `tested_columns` and `ignore_columns` parameters can be used to override or modify this behaviour.
 
-        :param test: a :classL`BaseTest` object representing the test to run
-        """
-        if isinstance(test, DataframeTest):
-            self.dataframe_tests.append(test)
-        elif isinstance(test, RowTest):
-            self.row_tests.append(test)
-        else:
-            raise TypeError(f'Invalid test type: {type(test)}')
-
-    def add_generic_row_test(self, test_func: Callable[[str, Series], bool], columns: List[str] = None,
-                             name: str = None,
-                             column_autodetect: bool = False, ignore_columns: List[str] = None):
-        """
-        Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
-        predicate will not only take a row parameter, but also a column parameter preceding it. Individual
-        tests will be added for each of the given columns with the predicate column parameter set to them.
-
-        :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
-
-        :param columns: the columns this test should run on. Default is all the columns in the dataframe.
+        :param test_func: the predicate which will be used to test the rows of the dataframe in this test.
 
         :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
         property. By default (and if given `None`) this will be set to the name of the predicate function.
 
-        :param column_autodetect: don't set the given column as the tested one, and instead
-        autodetect tested columns at runtime. Default false.
+        :param tested_columns: setting this parameter to a list of columns will override this behaviour and cause the
+        run method to return the given list as the columns tested.
 
-        :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
-        True, this has no effect
+        :param ignore_columns: columns to ignore in tested-columns autodetection. If `tested_columns` is set,
+        columns that appear in it and in here will be ignored also.
         """
-        for column in (self.dataframe.columns if columns is None else columns):
-            tested_cols = None if column_autodetect else [column]
-            self.add_test(RowTest(partial(test_func, column), name + ' — ' + column, tested_cols, ignore_columns))
+        self.tests.append(Test(test_func,  name, tested_columns, ignore_columns))
 
-    def add_generic_db_test(self, test_func: Callable[[str, Series], bool], columns: List[str] = None, name: str = None,
-                            column_autodetect: bool = False, ignore_columns: List[str] = None):
+    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: List[str] = None, name: str = None,
+                         column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
@@ -145,41 +124,14 @@ class DBTests:
         for column in (self.dataframe.columns if columns is None else columns):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
-            self.add_test(DataframeTest(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns))
-
-    def add_dtype_test(self, test_func: Callable[[str, Series], bool], dtypes: List[str], name: str = None,
-                       column_autodetect: bool = False, ignore_columns: List[str] = None):
-        """
-        Adds a generic test to columns of a certain dtype or dtypes. Instead of as in :func:`add_test`, the
-        predicate will not only take a row parameter, but also a column parameter preceding it. Individual
-        tests will be added for each of the column of the dtypes given with the predicate column parameter
-        set to them.
-
-        :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
-
-        :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
-        property. By default (and if given `None`) this will be set to the name of the predicate function.
-
-        :param dtypes: the dtypes this test should run on. Default is all the columns in the dataframe.
-
-        :param column_autodetect: don't set the given column as the tested one, and instead
-        autodetect tested columns at runtime. Default false.
-
-        :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
-        True, this has no effect
-        """
-        self.add_generic_row_test(test_func, self.dataframe.select_dtypes(include=dtypes), name, column_autodetect,
-                                  ignore_columns)
+            self.add_test(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns)
 
     def run(self):
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
-        if len(self.row_tests) > 0:
-            dataframe_rows = list(self.dataframe.iterrows())
-        results = [test.run(dataframe_rows) for test in self.row_tests] \
-                  + [test.run(self.dataframe) for test in self.dataframe_tests] \
-                  + [test.run(dataframe_rows) for test in self.config.get_tests(self.dataframe)]
+        results = [test.run(self.dataframe) for test in self.tests] \
+                  + [test.run(self.dataframe) for test in self.config.get_tests(self.dataframe)]
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),

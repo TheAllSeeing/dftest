@@ -9,12 +9,12 @@ from typing import Dict, List, Union, Callable
 from pandas import Series, DataFrame
 
 import utils
-from Test import RowTest
+from Test import Test
 
 
 class ColumnConfig:
     def __init__(self, column_name: str, data_type: type = None, integrity_levels: Dict[str, int] = None,
-                 tests: List[RowTest] = None):
+                 tests: List[Test] = None):
         self.column_name = column_name
         self.data_type = str if data_type is None else data_type
         if integrity_levels is None:
@@ -91,7 +91,7 @@ class Config:
 
         integrity_levels = column_dict.get('integrity-levels', self.get_default_integrity_levels())
 
-        tests: List[RowTest] = []
+        tests: List[Test] = []
         for test_addr in column_dict.get('tests', self.get_default_tests()):
             try:
                 test_func = utils.get_func_from_addr(test_addr)
@@ -107,7 +107,7 @@ class Config:
                                  f'only (row) or (column, row) params are allowed')
 
             tests.append(
-                RowTest(test_func, name=f'{test_addr.split(".")[-1]} — {column_name}', tested_columns=[column_name]))
+                Test(test_func, name=f'{test_addr.split(".")[-1]} — {column_name}', tested_columns=[column_name]))
 
         return ColumnConfig(
             column_name,

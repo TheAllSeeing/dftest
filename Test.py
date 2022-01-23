@@ -5,20 +5,16 @@ from __future__ import annotations
 from sys import settrace, gettrace
 # For better typehinting
 from typing import List, Callable, Tuple, Set, Hashable, Union, Any
-
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series
 
-from utils import TestFunc
-
-
-class BaseTest:
+class Test:
     """
     A named predicate to enact on the rows of a :class:`pandas.DataFrame` which test the
     validity of one or more of its columns.
     """
 
-    def __init__(self, predicate: TestFunc, name: str = None, tested_columns: List[str] = None,
+    def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], name: str = None, tested_columns: List[str] = None,
                  ignore_columns: List[str] = None):
         """
         :class:`Test` class constructor.
@@ -87,48 +83,6 @@ class BaseTest:
         return test_result, accessed_columns.difference(self.ignore_columns)
 
     def run(self, dataframe: DataFrame) -> TestResult:
-        pass
-
-
-class RowTest(BaseTest):
-    """
-    A named predicate to enact on the rows of a :class:`pandas.DataFrame` which test the
-    validity of one or more of its columns.
-    """
-
-    def __init__(self, predicate: Callable[[Series], bool], name: str = None, tested_columns: List[str] = None,
-                 ignore_columns: List[str] = None):
-        super(RowTest, self).__init__(predicate, name, tested_columns, ignore_columns)
-
-    def test(self, row: Series) -> Tuple[bool, Set[str]]:
-        return super(RowTest, self).test(row)
-
-    def run(self, dataframe_rows: List[Tuple[Hashable, Series]]) -> TestResult:
-        """
-        Runs the test on a full dataframe.
-
-        :param dataframe_rows: The dataframe rows to test
-        :return: the test result as a :class:`TestResult` object.
-        """
-        columns_tested = set()
-        invalid_row_index = []
-        for i, row in dataframe_rows:
-            row_success, columns_tested_in_row = self.test(row)
-            if not row_success:
-                invalid_row_index.append(i)
-            columns_tested = columns_tested.union(columns_tested_in_row)
-        return TestResult(self, columns_tested, len(dataframe_rows), invalid_row_index)
-
-
-class DataframeTest(BaseTest):
-    def __init__(self, test: Callable[[DataFrame], List[Hashable]], name: str = None, tested_columns: List[str] = None,
-                 ignore_columns: List[str] = None):
-        super(DataframeTest, self).__init__(test, name, tested_columns, ignore_columns)
-
-    def test(self, dataframe: DataFrame) -> Tuple[List[Hashable], Set[str]]:
-        return super(DataframeTest, self).test(dataframe)
-
-    def run(self, dataframe: DataFrame) -> TestResult:
         invalid_index, columns_tested = self.test(dataframe)
         return TestResult(self, columns_tested, len(dataframe.index), invalid_index)
 
@@ -138,7 +92,7 @@ class TestResult:
     The results of a :class:`Test` preformed on a dataframe.
     """
 
-    def __init__(self, origin_test: BaseTest, columns_tested: Set[str], num_tested: int,
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int,
                  invalid_rows_index: List[Hashable]):
         """
         :param origin_test: the test this is a result of
