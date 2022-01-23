@@ -126,6 +126,12 @@ class DBTests:
             func_name = test_func.__name__ if name is None else name
             self.add_test(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns)
 
+    def clear(self):
+        """
+        Removes all added tests
+        """
+        self.tests.clear()
+
     def run(self):
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
