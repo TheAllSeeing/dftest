@@ -254,7 +254,7 @@ class ColumnResults:
         data = [self.num_valid, self.num_invalid]
         labels = ['Valid', 'Invalid']
 
-        plt.pie(data, autopct=utils.pie_autopct(data), colors=['green', 'red'])
+        plt.pie(data, autopct=utils.make_autopct(data), colors=['green', 'red'])
         fig.legend(labels)
         fig.suptitle(self.column + ' Validity')
         return fig
@@ -389,12 +389,12 @@ class DBTestResults:
 
         fig = plt.figure()
         tested_data = [self.num_cols_tested, self.num_cols_untested],
-        plt.pie(tested_data, colors=colors, autopct=utils.pie_autopct(tested_data))
+        plt.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
         fig.legend(['Tested', 'Untested'])
 
         fig = plt.figure()
         valid_data = [self.num_valid, self.num_invalid]
-        plt.pie(valid_data, colors=colors, autopct=utils.pie_autopct(valid_data))
+        plt.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data))
         plt.show()
         fig.legend(['Valid', 'Invalid'])
 

@@ -8,7 +8,7 @@ from typing_extensions import Protocol
 import colorsys
 
 
-def pie_autopct(data):
+def make_autopct(data):
     """
     Generates a function for automatic labeling of pie charts by number and percent values
     :param data: the pie chart data
