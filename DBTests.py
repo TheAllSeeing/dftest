@@ -136,8 +136,11 @@ class DBTests:
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
-        results = [test.run(self.dataframe) for test in self.tests] \
-                  + [test.run(self.dataframe) for test in self.config.get_tests(self.dataframe)]
+        tests = self.tests + self.config.get_tests(self.dataframe)
+        results = []
+        for test in tests:
+            print('Testing: ' + test.name)
+            results.append(test.run(self.dataframe))
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
