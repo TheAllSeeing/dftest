@@ -138,8 +138,8 @@ class DBTests:
         """
         tests = self.tests + self.config.get_tests(self.dataframe)
         results = []
-        for test in tests:
-            print('Testing: ' + test.name)
+        for i, test in enumerate(tests):
+            print(f'Test #{i}: {test.name}')
             results.append(test.run(self.dataframe))
         return DBTestResults(
             self.dataframe,
