@@ -13,30 +13,39 @@ if __name__ == '__main__':
     # with open('config.json') as conf_file:
     #     tests.load_config(conf_file)
 
-    dbtests.add_generic_db_test(tests.is_not_null, column_autodetect=True)
+    columns_to_test = set(df.columns) - {'Metadata Date'}
 
+    dbtests.add_generic_test(tests.is_not_null, columns=columns_to_test)
+
+    # Note that because of the dataset significant inconsistency, we have
+    # to make sure to catch ValueErrors when converting to int or float for
+    # calculations.
+    def try_parse_int(int_str):
+        try:
+            return int(int_str)
+        except ValueError:
+            return -1
+
+
+    def years_match(dataframe):
+        bool_arr = dataframe['Object Number'].str.extract('([0-9]{2})\.*')[0].apply(try_parse_int) != (
+                dataframe['AccessionYear'].apply(try_parse_int) % 100)
+        return [i for i, check in enumerate(bool_arr) if check]
+
+
+    dbtests.add_test(years_match)
+
+    results = dbtests.run()
+    print([result.from_test.name for result in results.results])
 
     # bool_cols = ['Private']
     # tests.add_generic_test(test_funcs.boolean_test, name='Yes/No Compliance', columns=bool_cols)
-    #
-    # natural_cols = set(df.columns) - {'Private', 'S.F.Ratio', 'Unnamed: 0'}
-    # tests.add_generic_test(test_funcs.nonzero_natural_test, name='Integer Compliance', columns=natural_cols)
-    #
-    # perc_cols = ['Top10perc', 'Top25perc', 'PhD', 'Terminal', 'perc.alumni', 'Grad.Rate']
-    # tests.add_generic_test(test_funcs.percent_test, name='Percent Compliance', columns=perc_cols)
-    #
-    # tests.add_test(test_funcs.reasonable_room_cost_range_test)
-    # tests.add_test(test_funcs.apps_accept_enroll_test, name='Apps > Accept > Enroll')
-    # dbtests.add_test(test_funcs.sane_spending_test, name='Sane Spending')
-
-    results = dbtests.run()
-    # results.print()
-    # results.show_summary()
-    # res = results.get_column_results('Personal')
-    # res.print()
     # results.
     # results.get_column_results('Personal').tests_heatmap()
+    results.graph_summary()
     results.graph_validity_heatmap()
+    col_results = results.get_column_results('Object Number')
+    col_results.graph_validity_heatmap()
     results.plt.show()
 
     # print(MixedDataTypes().add_condition_rare_type_ratio_not_in_range().run(df))
