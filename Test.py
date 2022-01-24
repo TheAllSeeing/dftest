@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # For autodetecting accessed columns as a test run, and set the trace function back afterwards.
+from ast import Index
 from sys import settrace, gettrace
 # For better typehinting
 from typing import List, Callable, Tuple, Set, Hashable, Union, Any
@@ -15,7 +16,7 @@ class Test:
     validity of one or more of its columns.
     """
 
-    def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], name: str = None,
+    def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], column_index: Index = None, name: str = None,
                  tested_columns: List[str] = None, ignore_columns: List[str] = None):
         """
         :class:`Test` class constructor.
@@ -36,6 +37,7 @@ class Test:
         columns that appear in it and in here will be ignored also.
         """
         self.predicate = predicate
+        self.column_index = column_index
 
         if name is None:
             self.name = self.predicate.__name__
@@ -44,6 +46,9 @@ class Test:
 
         self.tested_columns = set() if tested_columns is None else set(tested_columns)
         self.ignore_columns = set() if ignore_columns is None else set(ignore_columns)
+
+        if column_index is None and (tested_columns is None or len(tested_columns) == 0):
+            raise ValueError("Tried to initialize test with no column index and no specified test columns!")
 
     def test(self, test_target: Any) -> Tuple[Union[bool, List[Hashable]], Set[str]]:
         """
@@ -67,10 +72,13 @@ class Test:
         # at https://explog.in/notes/settrace.html
         def add_accessed_columns(frame, event, arg):
             # Run on *calls* of *__getitem__* with a *Series* object *which is the test row*
-            if event == 'call' \
-                    and frame.f_code in [Series.__getitem__.__code__, DataFrame.__getitem__.__code__] \
-                    and frame.f_locals['self'].equals(test_target):
-                accessed_columns.add(frame.f_locals['key'])
+            if event == 'call':
+                if frame.f_code == Index.__getitem__.__code__:
+                    accessed_columns.add(self.column_index[frame.f_locals['key']])
+                if frame.f_code == Series.__getitem__.__code__:
+                    key = frame.f_locals['key']
+                    if key in self.column_index:
+                        accessed_columns.add(key)
 
         original_trace = gettrace()
         settrace(add_accessed_columns)

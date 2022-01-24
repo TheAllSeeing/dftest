@@ -99,10 +99,10 @@ class DBTests:
         :param ignore_columns: columns to ignore in tested-columns autodetection. If `tested_columns` is set,
         columns that appear in it and in here will be ignored also.
         """
-        self.tests.append(Test(test_func,  name, tested_columns, ignore_columns))
+        self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns))
 
-    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: Iterable[str] = None, name: str = None,
-                         column_autodetect: bool = False, ignore_columns: List[str] = None):
+    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: Iterable[str] = None,
+                         name: str = None, column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
