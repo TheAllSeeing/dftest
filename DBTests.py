@@ -9,7 +9,7 @@ from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better typehinting
-from typing import List, Callable, Hashable
+from typing import List, Callable, Hashable, Iterable
 
 # For graph graphics
 import matplotlib
@@ -101,7 +101,7 @@ class DBTests:
         """
         self.tests.append(Test(test_func,  name, tested_columns, ignore_columns))
 
-    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: List[str] = None, name: str = None,
+    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: Iterable[str] = None, name: str = None,
                          column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
