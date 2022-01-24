@@ -139,8 +139,10 @@ class DBTests:
         tests = self.tests + self.config.get_tests(self.dataframe)
         results = []
         for i, test in enumerate(tests):
-            print(f'Test #{i}: {test.name}')
+            print(f'\rTesting {round(i/len(tests)*100):02d}% (#{i+1}: {test.name})', end='')
             results.append(test.run(self.dataframe))
+        print('\rFinished testing')
+        print([result.from_test.name for result in results])
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
