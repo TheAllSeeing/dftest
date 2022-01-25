@@ -5,6 +5,8 @@ from __future__ import annotations
 import datetime
 # For compressing generic column, row tests to individual column
 import operator
+import re
+from configparser import ConfigParser
 from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
@@ -22,11 +24,11 @@ import pandasgui
 import seaborn
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
-from pandas import DataFrame, Series
+from pandas import DataFrame, Index
 
 import utils
 from Test import TestResult, Test
-from config import Config, ColumnConfig
+from style import StyleFile, Style
 
 matplotlib.use('TkAgg')
 
@@ -47,37 +49,58 @@ class DBTests:
         self.dataframe: DataFrame = df
         self.tests: List[Test] = []
         self.columns_tested = set()
-        self.config = Config()
 
-    def load_config(self, config_file: open):
+    def load_config(self, config_file: str):
         """
         Loads a JSON config file.
 
-        A config flle may be something like
         ```
-        {
-            "Column" : {
-                "type": "column_type"
-                "tests": [
-                    "module.function",
-                    "module.class.function"
-                ]
-                "integrity-levels": {
-                  "red": 0,
-                  "orange": 0.25,
-                  "yellow": 0.5,
-                  "blue": 0.75,
-                  "green": 1
-                }
-            }
-        }
+        [testmodule.test_func]
+        name = mytestbane
+        include = col1_to_test,col2_to_test
+        exclude = col1_to_ignore,col2_to_ignore
+        autodetect = true
+        ignore = false
         ```
+        any tests specified in brackets like above will be added. all of the settings below it are optional. Generic vs.
+        normal tests are detected autpmatically
 
-        You may specify any of the attributes as you like, and missing values will be infered from the configuration of
-        the __DEFAULT__ column if it exists, and otherwise set to type str, no tests and the integrity-levels shown
-        above.
+        for generic tests, include and exclude determine which columns will be tested, and autodetect toggle autodetection.
+
+        for normal tests, include overrides column autodetection and exclude specifies columns to ignore in
+        autodetection (or in reading include). "autodetection" value has no effect.
+
+        set ignore to true in order to easily disable tests. name controls test name.
         """
-        self.config = Config(config_file)
+        config = ConfigParser()
+        config.read(config_file)
+        for test in config.sections():
+            test_cfg = config[test]
+
+            if not test_cfg.getboolean('ignore', False):
+                try:
+                    test_func = utils.get_func_from_addr(test)
+                except ValueError as e:
+                    raise ValueError(f'Nonexistent test specified in {config_file}: {test}.')
+
+                argcount = test_func.__code__.co_argcount
+                included = test_cfg.get('include', None)
+                # Use regex to allow escaping commas
+                included = re.split(r'(?<!\\),', included) if included is not None else included
+
+                excluded = test_cfg.get('exclude', None)
+                # Use regex to allow escaping commas
+                excluded = re.split(r'(?<!\\),', excluded) if excluded is not None else excluded
+
+                name = test_cfg.get('name', None)
+                if argcount == 2:
+                    self.add_generic_test(test_func, included,  name, test_cfg.getboolean('autodetect', False), excluded)
+                elif argcount == 1:
+                    self.add_test(test_func, name, included, excluded)
+                else:
+                    raise ValueError(f'Invalid test specified: {test}: function argcount {argcount};'
+                                     f'only (row) or (column, row) params are allowed')
+
 
     def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
                  tested_columns: List[str] = None, ignore_columns: List[str] = None):
@@ -136,18 +159,16 @@ class DBTests:
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
-        tests = self.tests + self.config.get_tests(self.dataframe)
         results = []
-        for i, test in enumerate(tests):
-            print(f'\rTesting {round(i/len(tests)*100):02d}% (#{i+1}: {test.name})', end='')
+        for i, test in enumerate(self.tests):
+            print(f'\rTesting {round(i/len(self.tests)*100):02d}% (#{i+1}: {test.name})', end='')
             results.append(test.run(self.dataframe))
         print('\rFinished testing')
-        print([result.from_test.name for result in results])
+
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
-            results,
-            self.config
+            results
         )
 
 
@@ -160,17 +181,18 @@ class ColumnResults:
     in pandasgui.
     """
 
-    def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, config: ColumnConfig):
+    def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, style: Style):
         """
         :param column: the name of the column
         :param results: a list of each :class:`TestResult` result from the tests ran over the columns.
         :param dataframe: the tested dataframe
-        :param config: the configuration set for this column
         """
         self.column = column
         self.results = results
-        self.config = config
+        self.style = style
         self.dataframe = dataframe
+
+        self.style = style
         try:
             self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
         except TypeError:  # Reduce throws a TypeError if it's given an empty list.
@@ -212,6 +234,9 @@ class ColumnResults:
         """
         return self.num_rows - self.num_invalid
 
+    def load_stylefile(self, filepath):
+        self.stylefile = StyleFile(filepath)
+
     def graph_tests_success(self) -> plt.Figure:
         """
         Generates a stacked bar chart showcasing the number of successes (in green)
@@ -223,7 +248,7 @@ class ColumnResults:
         """
         labels = [result.from_test.name for result in self.results]
         valid_nums = [result.num_valid for result in self.results]
-        valid_colors = [self.config.colorcode(valid_num / self.num_rows) for valid_num in valid_nums]
+        valid_colors = [self.style.colorcode(valid_num / self.num_rows) for valid_num in valid_nums]
         invalid_nums = [result.num_invalid for result in self.results]
         invalid_colors = [utils.adjust_lightness(valid_color, 0.4) for valid_color in valid_colors]
 
@@ -237,9 +262,9 @@ class ColumnResults:
         test_labels = [result.from_test.name for result in self.results]
         data = np.array([result.num_valid / self.num_rows for result in self.results])
         fig, ax = plt.subplots()
-        colors = ['red', 'orange', 'yellow', 'blue', 'green']
-        color_steps = [self.config.integrity_levels[color] for color in colors]
-        color_map = utils.nonlinear_cmap(colors, color_steps)
+
+        step_colors, step_values = self.style.transposed
+        color_map = utils.nonlinear_cmap(step_colors, step_values)
 
         seaborn.heatmap([data],
                         vmin=0, vmax=1,
@@ -320,14 +345,15 @@ class ColumnResults:
 class DBTestResults:
     plt = plt
 
-    def __init__(self, dataframe, timestamp, results: List[TestResult], config: Config):
+    def __init__(self, dataframe, timestamp, results: List[TestResult]):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
         self.results = results
-        self.config = config
 
         self.cols_checked = set().union(*(result.columns_tested for result in results))
         self.invalid_row_index = set().union(*(result.invalid_row_index for result in results))
+
+        self.stylefile = StyleFile()
 
     @property
     def num_rows(self):
@@ -358,13 +384,16 @@ class DBTestResults:
         """The list of :class:`ColumnResults` objects for each column in the tested dataframe"""
         return [self.get_column_results(column) for column in self.dataframe.columns]
 
+    def load_styles(self, stylefile_path):
+        self.stylefile = StyleFile(stylefile_path)
+
     def get_column_results(self, column: str) -> ColumnResults:
         """
         :param column: the column to get the results for
         :return: a :class:`ColumnResults` object containing all the results for tests that tested the specified column
         """
         res_list = [result for result in self.results if column in result.columns_tested]
-        return ColumnResults(column, res_list, self.dataframe, self.config.get_column_config(column))
+        return ColumnResults(column, res_list, self.dataframe, self.stylefile.get_column_style(column))
 
     def graph_validity_heatmap(self):
         """
