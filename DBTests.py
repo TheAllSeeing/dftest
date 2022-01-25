@@ -371,14 +371,22 @@ class DBTestResults:
         return len(self.dataframe.columns) - self.num_cols_tested
 
     @property
-    def num_invalid(self):
+    def num_cols_valid(self):
+        return sum(1 for column in self.column_results if column.tested and column.valid)
+
+    @property
+    def num_cols_invalid(self):
+        return self.num_cols_tested - self.num_cols_valid
+
+    @property
+    def num_rows_invalid(self):
         """Number of rows that came as invalid under at least one test"""
         return len(self.invalid_row_index)
 
     @property
-    def num_valid(self):
+    def num_rows_valid(self):
         """Number of rows that passes all tests ran"""
-        return self.num_rows - self.num_invalid
+        return self.num_rows - self.num_rows_invalid
 
     @property
     def column_results(self):
@@ -409,7 +417,7 @@ class DBTestResults:
                       + ['Dataframe']
         data = np.array(
             [result.num_valid / self.num_rows for result in self.column_results if result.tested]
-            + [self.num_valid / self.num_rows]
+            + [self.num_rows_valid / self.num_rows]
         )
         fig, ax = plt.subplots()
         step_colors, step_values = self.stylefile.dataframe_style.transposed
@@ -437,7 +445,7 @@ class DBTestResults:
         ax1.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
         ax1.legend(['Tested', 'Untested'])
 
-        valid_data = [self.num_valid, self.num_invalid]
+        valid_data = [self.num_rows_valid, self.num_rows_invalid]
         ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
         ax2.legend(["Valid", 'Invalic'])
 
@@ -454,13 +462,10 @@ class DBTestResults:
         :param print_all_failed: print all rows where a test failed. By default only prints up to 10.
         """
 
-        num_rows, num_cols = self.dataframe.shape
-        num_checked = len(self.cols_checked)
-        # Count fully valid columns
-        num_valid = sum(1 for column in self.cols_checked if self.get_column_results(column).valid)
+        num_cols = len(self.dataframe.columns)
 
-        print(f'Columns Tested: {num_checked}/{num_cols} ({round(num_checked / num_cols * 100)}%).')
-        print(f'Columns valid: {num_valid}/{num_cols} ({round(num_valid / num_cols * 100, 2)}%).')
+        print(f'Columns Tested: {self.num_cols_tested}/{num_cols} ({round(self.num_cols_tested / num_cols * 100)}%).')
+        print(f'Columns valid: {self.num_cols_valid}/{self.num_cols_tested} ({round(self.num_cols_valid / self.num_cols_tested * 100, 2)}%).')
 
         if not stub:  # If stub not set, print details for individual columns.
             print()
