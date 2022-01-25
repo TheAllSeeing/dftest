@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-import builtins
+# To parse style files
 import json
-import operator
-from functools import partial, reduce
-from typing import Dict, List, Tuple
-
-from pandas import DataFrame, Index
-
-import tests
-import utils
-from Test import Test
+# Better type hints
+from typing import Dict, List
 
 
 class Style:

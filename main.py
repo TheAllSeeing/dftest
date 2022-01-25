@@ -1,7 +1,5 @@
 import pandas
-from matplotlib import pyplot
 
-import test_funcs
 import tests
 from DBTests import DBTests
 

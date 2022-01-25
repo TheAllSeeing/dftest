@@ -5,12 +5,15 @@ from __future__ import annotations
 import datetime
 # For compressing generic column, row tests to individual column
 import operator
+# For splitting with delimiter escape in conf parsing
 import re
+# For patrsing test conf files
 from configparser import ConfigParser
+# partial for dividing generic tests, reduce for flattening list of invalid index lists
 from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
-# For better typehinting
+# For better type hinting
 from typing import List, Callable, Hashable, Iterable, Union
 
 # For graph graphics
@@ -18,10 +21,13 @@ import matplotlib
 # For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
 # attribute). from-import not used to make the purpose of these methods more explicit.
 import numpy as np
+# For  configuring dataframe printing with pandas.options
 import pandas
 # For displaying coverage and result graphs
 import pandasgui
+# For heatmaps
 import seaborn
+# For graphing
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Index

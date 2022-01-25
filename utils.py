@@ -1,11 +1,7 @@
-# To get RGB from input
-from typing import List, Union, Any
-
-from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
-# For custom type hints
-from typing_extensions import Protocol
 # To adjust in HLS
 import colorsys
+# To generate cmap, convert names to hex & rgb
+from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
 
 
 def make_autopct(data):

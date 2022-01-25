@@ -1,5 +1,3 @@
-from pandas import Series
-
 import tests
 
 yesno_test = tests.in_list_test(['yes', 'no'])

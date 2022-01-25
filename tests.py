@@ -1,9 +1,7 @@
-import re
+# For better type hinting
 from typing import Any, List, Union
-
-import deepchecks.checks
-import numpy as np
-from pandas import Series, DataFrame
+# For dataframe type hinting
+from pandas import DataFrame
 
 
 def range_test(left_limit: Union[int, float] = None, right_limit: Union[int, float] = None,
