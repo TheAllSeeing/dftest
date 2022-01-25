@@ -406,10 +406,8 @@ class DBTestResults:
 
     def graph_validity_heatmap(self):
         """
-        Generated a 1D heatmap of the columns by validity, color coded by the default integrity levels
-        dictionary set for the database.
-
-        In order for
+        creates and returns a pyplot figure of a 1D heatmap of the columns by validity, color coded by the default
+        integrity levels dictionary set for the database.
 
         :return: The pyplot figure containing the graph
         """
