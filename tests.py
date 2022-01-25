@@ -43,13 +43,15 @@ def match_test(regex: str, column=None, name=None):
 
 
 def simple_type_test(data_types: Union[List[type], type], column=None, name=None):
-    data_types = [data_types] if type(data_types) == type else data_types  # Allow inserting single type
+    data_types = [data_types] if type(data_types) is type else data_types
+
     if column is None:
-        func = lambda column, df: [i for i, cell in enumerate(df[column].apply(lambda x: type(x) in data_types)) if
-                                   cell]
+        func = lambda column, df: [i for i, cell in enumerate(df[column].apply(lambda x: type(x) not in data_types)) if cell]
     else:
-        func = lambda df: [i for i, cell in enumerate(df[column].apply(lambda x: type(x) in data_types)) if cell]
-    func.__name__ = f'{"Column" if column is None else column} type {str(data_types)}' if name is None else name
+        func = lambda df: [i for i, cell in enumerate(df[column].apply(lambda x: type(x) not in data_types)) if cell]
+
+    type_str = str([data_type.__name__ for data_type in data_types]) if len(data_types) > 1 else data_types[0].__name__
+    func.__name__ = f'{"Column" if column is None else column} type {type_str}' if name is None else name
     return func
 
 
