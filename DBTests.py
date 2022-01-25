@@ -287,8 +287,9 @@ class ColumnResults:
         fig = plt.figure()
         data = [self.num_valid, self.num_invalid]
         labels = ['Valid', 'Invalid']
+        colors = [self.style.values[-1][0], self.style.values[0][0]]
 
-        plt.pie(data, autopct=utils.make_autopct(data), colors=['green', 'red'])
+        plt.pie(data, autopct=utils.make_autopct(data), colors=colors)
         fig.legend(labels)
         fig.suptitle(self.column + ' Validity')
         return fig
@@ -411,9 +412,8 @@ class DBTestResults:
             + [self.num_valid / self.num_rows]
         )
         fig, ax = plt.subplots()
-        colors = ['red', 'orange', 'yellow', 'blue', 'green']
-        color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
-        color_map = utils.nonlinear_cmap(colors, color_steps)
+        step_colors, step_values = self.stylefile.dataframe_style.transposed
+        color_map = utils.nonlinear_cmap(step_colors, step_values)
 
         seaborn.heatmap([data],
                         vmin=0, vmax=1,
@@ -426,7 +426,10 @@ class DBTestResults:
         return fig
 
     def graph_summary(self):
-        colors = ['green', 'red']
+        """
+        Adds and returns a pyplot figure containing two pie charts - one for tested vs. untested columns, and one for valid vs. invalid columns.
+        """
+        colors = [self.stylefile.dataframe_style.values[-1][0], self.stylefile.dataframe_style.values[0][0]]
 
         fig, (ax1, ax2) = plt.subplots(2)
 
