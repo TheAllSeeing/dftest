@@ -11,7 +11,7 @@ from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better typehinting
-from typing import List, Callable, Hashable, Iterable
+from typing import List, Callable, Hashable, Iterable, Union
 
 # For graph graphics
 import matplotlib
@@ -294,16 +294,17 @@ class ColumnResults:
         fig.suptitle(self.column + ' Validity')
         return fig
 
-    def open_invalid_rows(self, index, sample_size: int = None):
+    def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
         """
         Opens the invalid rows at the specified columns in the pandasgui interface.
 
         :param index: an iterable of the columns to include. This will always include this column.
         :param sample_size: if specified, opens the first n invalid rows.
         """
-        sample_size = self.num_invalid if sample_size is None else sample_size
-        index = set(index).union({self.column})
-        failures = [result.get_invalid_rows(self.dataframe)[index].iloc[:sample_size] for result in self.results]
+        index = {self.column} if index is None else set(index).union({self.column})
+        failures = [result.get_invalid_rows(self.dataframe)[index] for result in self.results if not result.success]
+        if sample_size is not None:
+            failures = [failure.sample(sample_size) for failure in failures]
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
         return pandas_proc.start()
 
