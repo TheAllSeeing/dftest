@@ -42,7 +42,12 @@ def get_func_from_addr(func_addr: str):
     base_attr = __import__(func_addr[0])
     del func_addr[0]
     for attr in func_addr:
-        base_attr = getattr(base_attr, attr)
+        try:
+            base_attr = getattr(base_attr, attr)
+        except AttributeError as e:
+            raise ValueError(f'Tried to parse invalid function name: {".".join(func_addr)}. No {attr} in {base_attr}! '
+                             f'Listed in {base_attr}:\n' + "\n".join(dir(base_attr)))
+
     return base_attr
 
 

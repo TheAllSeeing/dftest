@@ -1,0 +1,23 @@
+{
+  "__DATAFRAME__": [
+    {"white": 0},
+    {"lightgray": 0.25},
+    {"silver": 0.5},
+    {"darkgray": 0.75},
+    {"black": 1}
+  ],
+
+  "__DEFAULT__": [
+    {"red": 0},
+    {"blue": 0.25},
+    {"yellow": 0.5},
+    {"orange": 0.75},
+    {"green": 1}
+  ],
+
+  "Object Number": [
+    {"purple": 0},
+    {"red": 0.5},
+    {"yellow": 1}
+  ]
+}

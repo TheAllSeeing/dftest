@@ -5,11 +5,13 @@ from __future__ import annotations
 import datetime
 # For compressing generic column, row tests to individual column
 import operator
+import re
+from configparser import ConfigParser
 from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better typehinting
-from typing import List, Callable, Hashable, Iterable
+from typing import List, Callable, Hashable, Iterable, Union
 
 # For graph graphics
 import matplotlib
@@ -22,11 +24,11 @@ import pandasgui
 import seaborn
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
-from pandas import DataFrame, Series
+from pandas import DataFrame, Index
 
 import utils
 from Test import TestResult, Test
-from config import Config, ColumnConfig
+from style import StyleFile, Style
 
 matplotlib.use('TkAgg')
 
@@ -47,37 +49,60 @@ class DBTests:
         self.dataframe: DataFrame = df
         self.tests: List[Test] = []
         self.columns_tested = set()
-        self.config = Config()
 
-    def load_config(self, config_file: open):
+    def load_config(self, config_file: str):
         """
         Loads a JSON config file.
 
-        A config flle may be something like
         ```
-        {
-            "Column" : {
-                "type": "column_type"
-                "tests": [
-                    "module.function",
-                    "module.class.function"
-                ]
-                "integrity-levels": {
-                  "red": 0,
-                  "orange": 0.25,
-                  "yellow": 0.5,
-                  "blue": 0.75,
-                  "green": 1
-                }
-            }
-        }
+        [testmodule.my_generic_test_func]
+        name = mytestbane
+        include = col1_to_test,col2_to_test
+        exclude = col1_to_ignore,col2_to_ignore
+        autodetect = true
+        autodetect_ignore = some_cols
+        ignore = false
         ```
+        any tests specified in brackets like above will be added. all of the settings below it are optional. Generic vs.
+        normal tests are detected autpmatically
 
-        You may specify any of the attributes as you like, and missing values will be infered from the configuration of
-        the __DEFAULT__ column if it exists, and otherwise set to type str, no tests and the integrity-levels shown
-        above.
+        for generic tests, include and exclude determine which columns will be tested, and autodetect toggle autodetection.
+
+        for normal tests, include overrides column autodetection and exclude specifies columns to ignore in
+        autodetection (or in reading include). "autodetection" value has no effect.
+
+        set ignore to true in order to easily disable tests. name controls test name.
         """
-        self.config = Config(config_file)
+        config = ConfigParser()
+        config.read(config_file)
+
+        def get_list(cfg, key: str):
+            if key not in cfg.keys():
+                return None
+            return re.split(r'(?<!\\),', cfg[key])
+
+        for test in config.sections():
+            test_cfg = config[test]
+
+            if not test_cfg.getboolean('ignore', False):
+                try:
+                    test_func = utils.get_func_from_addr(test)
+                except ValueError as e:
+                    raise ValueError(f'Nonexistent test specified in {config_file}: {test}.')
+
+                argcount = test_func.__code__.co_argcount
+
+                name = test_cfg.get('name', None)
+                if argcount == 2:
+                    self.add_generic_test(test_func, get_list(test_cfg, 'include'), get_list(test_cfg, 'exclude'),
+                                          name, test_cfg.getboolean('autodetect', False),
+                                          get_list(test_cfg, 'autodetect_ignore'))
+                elif argcount == 1:
+                    self.add_test(test_func, name, get_list(test_cfg, 'tested_columns'),
+                                  get_list(test_cfg, 'autodetect_ignore'))
+                else:
+                    raise ValueError(f'Invalid test specified: {test}: function argcount {argcount};'
+                                     f'only (row) or (column, row) params are allowed')
 
     def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
                  tested_columns: List[str] = None, ignore_columns: List[str] = None):
@@ -101,8 +126,9 @@ class DBTests:
         """
         self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns))
 
-    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: Iterable[str] = None,
-                         name: str = None, column_autodetect: bool = False, ignore_columns: List[str] = None):
+    def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
+                         exclude: Iterable[str] = None, name: str = None, column_autodetect: bool = False,
+                         ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
@@ -110,7 +136,7 @@ class DBTests:
 
         :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
 
-        :param columns: the columns this test should run on. Default is all the columns in the dataframe.
+        :param include: the columns this test should run on. Default is all the columns in the dataframe.
 
         :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
         property. By default (and if given `None`) this will be set to the name of the predicate function.
@@ -121,7 +147,9 @@ class DBTests:
         :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
         True, this has no effect
         """
-        for column in (self.dataframe.columns if columns is None else columns):
+        include = self.dataframe.columns if include is None else include
+        exclude = [] if exclude is None else exclude
+        for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
             self.add_test(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns)
@@ -136,18 +164,16 @@ class DBTests:
         """
         Runs the given tests over the dataframe and returns a matching :class:`DBTestResults` object
         """
-        tests = self.tests + self.config.get_tests(self.dataframe)
         results = []
-        for i, test in enumerate(tests):
-            print(f'\rTesting {round(i/len(tests)*100):02d}% (#{i+1}: {test.name})', end='')
+        for i, test in enumerate(self.tests):
+            print(f'\rTesting {round(i / len(self.tests) * 100):02d}% (#{i + 1}: {test.name})', end='')
             results.append(test.run(self.dataframe))
         print('\rFinished testing')
-        print([result.from_test.name for result in results])
+
         return DBTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
-            results,
-            self.config
+            results
         )
 
 
@@ -160,17 +186,18 @@ class ColumnResults:
     in pandasgui.
     """
 
-    def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, config: ColumnConfig):
+    def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, style: Style):
         """
         :param column: the name of the column
         :param results: a list of each :class:`TestResult` result from the tests ran over the columns.
         :param dataframe: the tested dataframe
-        :param config: the configuration set for this column
         """
         self.column = column
         self.results = results
-        self.config = config
+        self.style = style
         self.dataframe = dataframe
+
+        self.style = style
         try:
             self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
         except TypeError:  # Reduce throws a TypeError if it's given an empty list.
@@ -212,6 +239,9 @@ class ColumnResults:
         """
         return self.num_rows - self.num_invalid
 
+    def load_stylefile(self, filepath):
+        self.stylefile = StyleFile(filepath)
+
     def graph_tests_success(self) -> plt.Figure:
         """
         Generates a stacked bar chart showcasing the number of successes (in green)
@@ -223,7 +253,7 @@ class ColumnResults:
         """
         labels = [result.from_test.name for result in self.results]
         valid_nums = [result.num_valid for result in self.results]
-        valid_colors = [self.config.colorcode(valid_num / self.num_rows) for valid_num in valid_nums]
+        valid_colors = [self.style.colorcode(valid_num / self.num_rows) for valid_num in valid_nums]
         invalid_nums = [result.num_invalid for result in self.results]
         invalid_colors = [utils.adjust_lightness(valid_color, 0.4) for valid_color in valid_colors]
 
@@ -237,9 +267,9 @@ class ColumnResults:
         test_labels = [result.from_test.name for result in self.results]
         data = np.array([result.num_valid / self.num_rows for result in self.results])
         fig, ax = plt.subplots()
-        colors = ['red', 'orange', 'yellow', 'blue', 'green']
-        color_steps = [self.config.integrity_levels[color] for color in colors]
-        color_map = utils.nonlinear_cmap(colors, color_steps)
+
+        step_colors, step_values = self.style.transposed
+        color_map = utils.nonlinear_cmap(step_colors, step_values)
 
         seaborn.heatmap([data],
                         vmin=0, vmax=1,
@@ -262,22 +292,24 @@ class ColumnResults:
         fig = plt.figure()
         data = [self.num_valid, self.num_invalid]
         labels = ['Valid', 'Invalid']
+        colors = [self.style.values[-1][0], self.style.values[0][0]]
 
-        plt.pie(data, autopct=utils.make_autopct(data), colors=['green', 'red'])
+        plt.pie(data, autopct=utils.make_autopct(data), colors=colors)
         fig.legend(labels)
         fig.suptitle(self.column + ' Validity')
         return fig
 
-    def open_invalid_rows(self, index, sample_size: int = None):
+    def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
         """
         Opens the invalid rows at the specified columns in the pandasgui interface.
 
         :param index: an iterable of the columns to include. This will always include this column.
         :param sample_size: if specified, opens the first n invalid rows.
         """
-        sample_size = self.num_invalid if sample_size is None else sample_size
-        index = set(index).union({self.column})
-        failures = [result.get_invalid_rows(self.dataframe)[index].iloc[:sample_size] for result in self.results]
+        index = {self.column} if index is None else set(index).union({self.column})
+        failures = [result.get_invalid_rows(self.dataframe)[index] for result in self.results if not result.success]
+        if sample_size is not None:
+            failures = [failure.sample(sample_size) for failure in failures]
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
         return pandas_proc.start()
 
@@ -320,14 +352,15 @@ class ColumnResults:
 class DBTestResults:
     plt = plt
 
-    def __init__(self, dataframe, timestamp, results: List[TestResult], config: Config):
+    def __init__(self, dataframe, timestamp, results: List[TestResult]):
         self.dataframe: DataFrame = dataframe
         self.timestamp: int = timestamp
         self.results = results
-        self.config = config
 
         self.cols_checked = set().union(*(result.columns_tested for result in results))
         self.invalid_row_index = set().union(*(result.invalid_row_index for result in results))
+
+        self.stylefile = StyleFile()
 
     @property
     def num_rows(self):
@@ -344,19 +377,30 @@ class DBTestResults:
         return len(self.dataframe.columns) - self.num_cols_tested
 
     @property
-    def num_invalid(self):
+    def num_cols_valid(self):
+        return sum(1 for column in self.column_results if column.tested and column.valid)
+
+    @property
+    def num_cols_invalid(self):
+        return self.num_cols_tested - self.num_cols_valid
+
+    @property
+    def num_rows_invalid(self):
         """Number of rows that came as invalid under at least one test"""
         return len(self.invalid_row_index)
 
     @property
-    def num_valid(self):
+    def num_rows_valid(self):
         """Number of rows that passes all tests ran"""
-        return self.num_rows - self.num_invalid
+        return self.num_rows - self.num_rows_invalid
 
     @property
     def column_results(self):
         """The list of :class:`ColumnResults` objects for each column in the tested dataframe"""
         return [self.get_column_results(column) for column in self.dataframe.columns]
+
+    def load_styles(self, stylefile_path):
+        self.stylefile = StyleFile(stylefile_path)
 
     def get_column_results(self, column: str) -> ColumnResults:
         """
@@ -364,14 +408,12 @@ class DBTestResults:
         :return: a :class:`ColumnResults` object containing all the results for tests that tested the specified column
         """
         res_list = [result for result in self.results if column in result.columns_tested]
-        return ColumnResults(column, res_list, self.dataframe, self.config.get_column_config(column))
+        return ColumnResults(column, res_list, self.dataframe, self.stylefile.get_column_style(column))
 
     def graph_validity_heatmap(self):
         """
-        Generated a 1D heatmap of the columns by validity, color coded by the default integrity levels
-        dictionary set for the database.
-
-        In order for
+        creates and returns a pyplot figure of a 1D heatmap of the columns by validity, color coded by the default
+        integrity levels dictionary set for the database.
 
         :return: The pyplot figure containing the graph
         """
@@ -379,12 +421,11 @@ class DBTestResults:
                       + ['Dataframe']
         data = np.array(
             [result.num_valid / self.num_rows for result in self.column_results if result.tested]
-            + [self.num_valid / self.num_rows]
+            + [self.num_rows_valid / self.num_rows]
         )
         fig, ax = plt.subplots()
-        colors = ['red', 'orange', 'yellow', 'blue', 'green']
-        color_steps = [self.config.get_default_integrity_levels()[color] for color in colors]
-        color_map = utils.nonlinear_cmap(colors, color_steps)
+        step_colors, step_values = self.stylefile.dataframe_style.transposed
+        color_map = utils.nonlinear_cmap(step_colors, step_values)
 
         seaborn.heatmap([data],
                         vmin=0, vmax=1,
@@ -397,7 +438,10 @@ class DBTestResults:
         return fig
 
     def graph_summary(self):
-        colors = ['green', 'red']
+        """
+        Adds and returns a pyplot figure containing two pie charts - one for tested vs. untested columns, and one for valid vs. invalid columns.
+        """
+        colors = [self.stylefile.dataframe_style.values[-1][0], self.stylefile.dataframe_style.values[0][0]]
 
         fig, (ax1, ax2) = plt.subplots(2)
 
@@ -405,7 +449,7 @@ class DBTestResults:
         ax1.pie(tested_data, colors=colors, autopct=utils.make_autopct(tested_data))
         ax1.legend(['Tested', 'Untested'])
 
-        valid_data = [self.num_valid, self.num_invalid]
+        valid_data = [self.num_rows_valid, self.num_rows_invalid]
         ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
         ax2.legend(["Valid", 'Invalic'])
 
@@ -422,13 +466,11 @@ class DBTestResults:
         :param print_all_failed: print all rows where a test failed. By default only prints up to 10.
         """
 
-        num_rows, num_cols = self.dataframe.shape
-        num_checked = len(self.cols_checked)
-        # Count fully valid columns
-        num_valid = sum(1 for column in self.cols_checked if self.get_column_results(column).valid)
+        num_cols = len(self.dataframe.columns)
 
-        print(f'Columns Tested: {num_checked}/{num_cols} ({round(num_checked / num_cols * 100)}%).')
-        print(f'Columns valid: {num_valid}/{num_cols} ({round(num_valid / num_cols * 100, 2)}%).')
+        print(f'Columns Tested: {self.num_cols_tested}/{num_cols} ({round(self.num_cols_tested / num_cols * 100)}%).')
+        print(
+            f'Columns valid: {self.num_cols_valid}/{self.num_cols_tested} ({round(self.num_cols_valid / self.num_cols_tested * 100, 2)}%).')
 
         if not stub:  # If stub not set, print details for individual columns.
             print()
