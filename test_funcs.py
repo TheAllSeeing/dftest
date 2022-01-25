@@ -15,6 +15,6 @@ def try_parse_int(int_str):
 
 
 def years_match(dataframe):
-    bool_arr = dataframe['Object Number'].str.extract('([0-9]{2})\.*')[0].apply(try_parse_int) != (
+    bool_arr = dataframe['Object Number'].str.extract('(?:[0-9]{2})*([0-9]{2})')[0].apply(try_parse_int) != (
             dataframe['AccessionYear'].apply(try_parse_int) % 100)
     return [i for i, check in enumerate(bool_arr) if check]
