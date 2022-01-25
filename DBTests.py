@@ -55,11 +55,12 @@ class DBTests:
         Loads a JSON config file.
 
         ```
-        [testmodule.test_func]
+        [testmodule.my_generic_test_func]
         name = mytestbane
         include = col1_to_test,col2_to_test
         exclude = col1_to_ignore,col2_to_ignore
         autodetect = true
+        autodetect_ignore = some_cols
         ignore = false
         ```
         any tests specified in brackets like above will be added. all of the settings below it are optional. Generic vs.
@@ -74,6 +75,12 @@ class DBTests:
         """
         config = ConfigParser()
         config.read(config_file)
+
+        def get_list(cfg, key: str):
+            if key not in cfg.keys():
+                return None
+            return re.split(r'(?<!\\),', cfg[key])
+
         for test in config.sections():
             test_cfg = config[test]
 
@@ -84,23 +91,18 @@ class DBTests:
                     raise ValueError(f'Nonexistent test specified in {config_file}: {test}.')
 
                 argcount = test_func.__code__.co_argcount
-                included = test_cfg.get('include', None)
-                # Use regex to allow escaping commas
-                included = re.split(r'(?<!\\),', included) if included is not None else included
-
-                excluded = test_cfg.get('exclude', None)
-                # Use regex to allow escaping commas
-                excluded = re.split(r'(?<!\\),', excluded) if excluded is not None else excluded
 
                 name = test_cfg.get('name', None)
                 if argcount == 2:
-                    self.add_generic_test(test_func, included,  name, test_cfg.getboolean('autodetect', False), excluded)
+                    self.add_generic_test(test_func, get_list(test_cfg, 'include'), get_list(test_cfg, 'exclude'),
+                                          name, test_cfg.getboolean('autodetect', False),
+                                          get_list(test_cfg, 'autodetect_ignore'))
                 elif argcount == 1:
-                    self.add_test(test_func, name, included, excluded)
+                    self.add_test(test_func, name, get_list(test_cfg, 'tested_columns'),
+                                  get_list(test_cfg, 'autodetect_ignore'))
                 else:
                     raise ValueError(f'Invalid test specified: {test}: function argcount {argcount};'
                                      f'only (row) or (column, row) params are allowed')
-
 
     def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
                  tested_columns: List[str] = None, ignore_columns: List[str] = None):
@@ -124,8 +126,9 @@ class DBTests:
         """
         self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns))
 
-    def add_generic_test(self, test_func:  Callable[[DataFrame], List[Hashable]], columns: Iterable[str] = None,
-                         name: str = None, column_autodetect: bool = False, ignore_columns: List[str] = None):
+    def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
+                         exclude: Iterable[str] = None, name: str = None, column_autodetect: bool = False,
+                         ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
@@ -133,7 +136,7 @@ class DBTests:
 
         :param test_func: a predicate will be used to test the rows of the dataframe with respect to a given column.
 
-        :param columns: the columns this test should run on. Default is all the columns in the dataframe.
+        :param include: the columns this test should run on. Default is all the columns in the dataframe.
 
         :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
         property. By default (and if given `None`) this will be set to the name of the predicate function.
@@ -144,7 +147,9 @@ class DBTests:
         :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
         True, this has no effect
         """
-        for column in (self.dataframe.columns if columns is None else columns):
+        include = self.dataframe.columns if include is None else include
+        exclude = [] if exclude is None else exclude
+        for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
             self.add_test(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns)
@@ -161,7 +166,7 @@ class DBTests:
         """
         results = []
         for i, test in enumerate(self.tests):
-            print(f'\rTesting {round(i/len(self.tests)*100):02d}% (#{i+1}: {test.name})', end='')
+            print(f'\rTesting {round(i / len(self.tests) * 100):02d}% (#{i + 1}: {test.name})', end='')
             results.append(test.run(self.dataframe))
         print('\rFinished testing')
 
@@ -464,7 +469,8 @@ class DBTestResults:
         num_cols = len(self.dataframe.columns)
 
         print(f'Columns Tested: {self.num_cols_tested}/{num_cols} ({round(self.num_cols_tested / num_cols * 100)}%).')
-        print(f'Columns valid: {self.num_cols_valid}/{self.num_cols_tested} ({round(self.num_cols_valid / self.num_cols_tested * 100, 2)}%).')
+        print(
+            f'Columns valid: {self.num_cols_valid}/{self.num_cols_tested} ({round(self.num_cols_valid / self.num_cols_tested * 100, 2)}%).')
 
         if not stub:  # If stub not set, print details for individual columns.
             print()
