@@ -1,6 +1,6 @@
 import pandas
 
-import tests
+import dftests
 from DBTests import DBTests
 
 if __name__ == '__main__':
