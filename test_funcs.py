@@ -1,35 +1,22 @@
 from pandas import Series
 
+import tests
 
-def boolean_test(column: str, row: Series):
-    return row[column] == 'Yes' or row[column] == 'No'
-
-
-def nonzero_natural_test(column, row):
-    return str(row[column]).isdigit() and int(row[column]) > 0
+yesno_test = tests.in_list_test(['yes', 'no'])
+percent = tests.range_test(0, 100, True, True)
 
 
-def percent_test(column, row):
+# Note that because of the dataset significant inconsistency, we have
+# to make sure to catch ValueErrors when converting to int or float for
+# calculations.
+def try_parse_int(int_str):
     try:
-        return 0 <= int(row[column]) <= 100
+        return int(int_str)
     except ValueError:
-        return False
+        return -1
 
 
-def reasonable_room_cost_range_test(row):
-    return 100 < row['Room.Board'] < 10000
-
-
-def apps_accept_enroll_test(row):
-    return row['Apps'] >= row['Accept'] >= row['Enroll']
-
-
-def enroll_range_test(row):
-    return 0 < row['Enroll'] <= 7500
-
-
-def sane_spending_test(row):
-    try:
-        return int(row['Personal']) < 4000
-    except ValueError:
-        return False
+def years_match(dataframe):
+    bool_arr = dataframe['Object Number'].str.extract('([0-9]{2})\.*')[0].apply(try_parse_int) != (
+            dataframe['AccessionYear'].apply(try_parse_int) % 100)
+    return [i for i, check in enumerate(bool_arr) if check]
