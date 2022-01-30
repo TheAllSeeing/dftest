@@ -19,6 +19,9 @@ class Style:
 
         self.transposed = tuple(map(list, zip(*self.values)))
 
+    @property
+    def edges(self):
+        return self.values[0][0], self.values[-1][0]
 
     def colorcode(self, validity_rate: float):
         color_code = None

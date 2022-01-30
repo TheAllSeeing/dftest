@@ -18,6 +18,8 @@ from typing import List, Callable, Hashable, Iterable, Union
 # For graphing
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Patch
 from pandas import DataFrame, Index
 
 # For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options

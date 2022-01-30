@@ -7,6 +7,8 @@ from sys import settrace, gettrace
 from typing import List, Callable, Tuple, Set, Hashable, Union, Any
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series, Index
+# For autodecteting test result type
+from numpy import bool_
 # for chekcing if result is number of invalid line
 from numbers import Number
 
@@ -95,12 +97,14 @@ class Test:
 
     def run(self, dataframe: DataFrame) -> TestResult:
         result, columns_tested = self.test(dataframe)
-        if isinstance(result, bool):
+        if isinstance(result, bool) or isinstance(result, bool_):
             return BooleanTestResult(self, columns_tested, len(dataframe.index), result)
         elif isinstance(result, Number):
             return NumberTestResult(self, columns_tested, len(dataframe.index), result)
         elif isinstance(result, list):
             return IndexTestResult(self, columns_tested, len(dataframe.index), result, self.success_threshold)
+        else:
+            raise ValueError(f'Test {self.name}: Invalid test return type: {type(result).__name__} {str(result)}')
 
 
 class TestResult:
