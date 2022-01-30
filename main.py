@@ -18,7 +18,7 @@ if __name__ == '__main__':
     results.print()
 
     results.graph_summary()
-    results.graph_validity_heatmap()
+    results.graph_validity_heatmap(binary=True)
     col_results = results.get_column_results('AccessionYear')
     col_results.open_invalid_rows()
     col_results.graph_validity_heatmap()

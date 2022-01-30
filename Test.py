@@ -7,6 +7,8 @@ from sys import settrace, gettrace
 from typing import List, Callable, Tuple, Set, Hashable, Union, Any
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Series, Index
+# for chekcing if result is number of invalid line
+from numbers import Number
 
 
 class Test:
@@ -16,7 +18,7 @@ class Test:
     """
 
     def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], column_index: Index = None, name: str = None,
-                 tested_columns: List[str] = None, ignore_columns: List[str] = None):
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold=1):
         """
         :class:`Test` class constructor.
 
@@ -37,6 +39,7 @@ class Test:
         """
         self.predicate = predicate
         self.column_index = column_index
+        self.success_threshold = success_threshold
 
         if name is None:
             self.name = self.predicate.__name__
@@ -91,8 +94,13 @@ class Test:
         return test_result, accessed_columns.difference(self.ignore_columns)
 
     def run(self, dataframe: DataFrame) -> TestResult:
-        invalid_index, columns_tested = self.test(dataframe)
-        return TestResult(self, columns_tested, len(dataframe.index), invalid_index)
+        result, columns_tested = self.test(dataframe)
+        if isinstance(result, bool):
+            return BooleanTestResult(self, columns_tested, len(dataframe.index), result)
+        elif isinstance(result, Number):
+            return NumberTestResult(self, columns_tested, len(dataframe.index), result)
+        elif isinstance(result, list):
+            return IndexTestResult(self, columns_tested, len(dataframe.index), result, self.success_threshold)
 
 
 class TestResult:
@@ -101,28 +109,45 @@ class TestResult:
     """
 
     def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int,
-                 invalid_rows_index: List[Hashable]):
+                 result: Union[bool, Number, List[Hashable]]):
         """
         :param origin_test: the test this is a result of
         :param columns_tested: the columns that were tested on the dataframe (by name)
-        :param invalid_rows_index: a list of indexes for the rows where the test failed.
+        :param result: a test result - either a list of invalid row index, or a number of invalid rows
         """
         self.from_test = origin_test
         self.columns_tested = columns_tested
         self.num_tested = num_tested
-        self.invalid_row_index = invalid_rows_index
+        self.result = result
+
+
+class BooleanTestResult(TestResult):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: Number):
+        super(BooleanTestResult, self).__init__(origin_test, columns_tested, num_tested, result)
+        self.success = result
+
+
+class NumberTestResult(TestResult):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: bool):
+        super(NumberTestResult, self).__init__(origin_test, columns_tested, num_tested, result)
+        self.num_invalid = self.num_tested - result
+        self.success = result
 
     @property
-    def success(self):
-        """Whether the dataframe passed the test completely"""
-        return len(self.invalid_row_index) == 0
+    def num_valid(self):
+        """
+        Number of dataframe rows that passes the test
+        """
+        return self.num_tested - self.num_invalid
 
-    @property
-    def num_invalid(self):
-        """
-        Number of dataframe rows that failed the test
-        """
-        return len(self.invalid_row_index)
+
+class IndexTestResult(TestResult):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: List[Hashable], success_threshold: float):
+        super(IndexTestResult, self).__init__(origin_test, columns_tested, num_tested, result)
+        self.num_invalid = len(result)
+        self.invalid_row_index = result
+
+        self.success = self.num_valid / self.num_tested >= success_threshold
 
     @property
     def num_valid(self):
@@ -132,4 +157,8 @@ class TestResult:
         return self.num_tested - self.num_invalid
 
     def get_invalid_rows(self, src_dataframe: DataFrame) -> DataFrame:
+        """
+        :param src_dataframe: the dataframe the test was ran on
+        :return: a dataframe containing each of the rows invalid under this test
+        """
         return src_dataframe.iloc[self.invalid_row_index]

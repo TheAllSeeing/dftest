@@ -31,7 +31,7 @@ import seaborn
 import sys
 
 import utils
-from Test import TestResult, Test
+from Test import TestResult, Test, IndexTestResult, BooleanTestResult
 from style import StyleFile, Style
 
 
@@ -210,7 +210,7 @@ class ColumnResults:
 
         self.style = style
         try:
-            self.invalid_row_index = set(reduce(operator.concat, [result.invalid_row_index for result in results]))
+            self.invalid_row_index = set(reduce(operator.concat, [result.result for result in results]))
         except TypeError:  # Reduce throws a TypeError if it's given an empty list.
             self.invalid_row_index = set()
 
@@ -340,22 +340,25 @@ class ColumnResults:
         print(f'--- {prefix}{self.column} ---')
         for j, result in enumerate(self.results, 1):
             print(f'Test #{str(j).zfill(2)}: {result.from_test.name}: ', end='')
-            print(f'{result.num_valid}/{self.num_rows} '
-                  f'({round(result.num_valid / self.num_rows * 100, 2)}%).')
 
-            pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
-
-            if print_all_failed:
-                to_print = result.get_invalid_rows(self.dataframe)
+            if isinstance(result, BooleanTestResult):
+                print('Success' if result.success else 'Failure')
             else:
-                to_print = result.get_invalid_rows(self.dataframe).iloc[:10]
+                print(f'{result.num_valid}/{self.num_rows} '
+                      f'({round(result.num_valid / self.num_rows * 100, 2)}%).')
 
-            columns_to_include = set() if columns_to_include is None else set(columns_to_include)
-            columns_to_include = columns_to_include.union({self.column})
-            if not len(to_print.index) == 0:
-                print(to_print[columns_to_include])
-            if not print_all_failed and result.num_invalid > 10:
-                print('...')
+                pandas.options.display.show_dimensions = False  # Don't show dimensions when printing rows.
+                if print_all_failed:
+                    to_print = result.get_invalid_rows(self.dataframe)
+                else:
+                    to_print = result.get_invalid_rows(self.dataframe).iloc[:10]
+
+                columns_to_include = set() if columns_to_include is None else set(columns_to_include)
+                columns_to_include = columns_to_include.union({self.column})
+                if not len(to_print.index) == 0:
+                    print(to_print[columns_to_include])
+                if not print_all_failed and result.num_invalid > 10:
+                    print('...')
 
             print()
 
@@ -369,7 +372,8 @@ class DBTestResults:
         self.results = results
 
         self.cols_checked = set().union(*(result.columns_tested for result in results))
-        self.invalid_row_index = set().union(*(result.invalid_row_index for result in results))
+        self.invalid_row_index = set().union(
+            *(result.result for result in results if isinstance(result, IndexTestResult)))
 
         self.stylefile = StyleFile()
 
@@ -421,31 +425,60 @@ class DBTestResults:
         res_list = [result for result in self.results if column in result.columns_tested]
         return ColumnResults(column, res_list, self.dataframe, self.stylefile.get_column_style(column))
 
-    def graph_validity_heatmap(self):
+    def graph_validity_heatmap(self, binary: bool = None):
         """
         creates and returns a pyplot figure of a 1D heatmap of the columns by validity, color coded by the default
         integrity levels dictionary set for the database.
 
+        :param binary: graph by binary success-failure. If set to false, will use only Index Tests
+        and graph rate of validty with a gradient. By default, True if any Boolean Tests were preformed and false otherwise.
         :return: The pyplot figure containing the graph
         """
+
+        if binary is None:
+            binary = any(isinstance(result, BooleanTestResult) for result in self.results)
+
         test_labels = [column for column in self.dataframe.columns if self.get_column_results(column).tested] \
                       + ['Dataframe']
-        data = np.array(
-            [result.num_valid / self.num_rows for result in self.column_results if result.tested]
-            + [self.num_rows_valid / self.num_rows]
-        )
         fig, ax = plt.subplots()
-        step_colors, step_values = self.stylefile.dataframe_style.transposed
-        color_map = utils.nonlinear_cmap(step_colors, step_values)
 
-        seaborn.heatmap([data],
-                        vmin=0, vmax=1,
-                        cmap=color_map,
-                        annot=True, fmt='.1%',
-                        annot_kws={'rotation': 90},
-                        xticklabels=test_labels, yticklabels=False)
+        if binary:
+            data = [result.valid for result in self.column_results if result.tested]
+            data.append(all(data))
+            data = np.array(data)
 
-        for t in ax.texts: t.set_text(t.get_text() + " %")
+            colors = self.stylefile.dataframe_style.edges
+            color_map = LinearSegmentedColormap.from_list('edges', colors)
+
+            seaborn.heatmap([data],
+                            vmin=0, vmax=1,
+                            cmap=color_map,
+                            cbar=False,
+                            linewidth=0.1, linecolor='lightgrey',
+                            xticklabels=test_labels, yticklabels=False)
+
+            legend_handles = [Patch(color=colors[True], label='Valid'),
+                              Patch(color=colors[False], label='Invalid')]
+            plt.legend(handles=legend_handles)
+
+        else:
+            data = np.array(
+                [result.num_valid / self.num_rows for result in self.column_results if result.tested]
+                + [self.num_rows_valid / self.num_rows]
+            )
+            step_colors, step_values = self.stylefile.dataframe_style.transposed
+            color_map = utils.nonlinear_cmap(step_colors, step_values)
+
+            seaborn.heatmap([data],
+                            vmin=0, vmax=1,
+                            cmap=color_map,
+                            annot=True, fmt='.1%',
+                            annot_kws={'rotation': 90},
+                            xticklabels=test_labels, yticklabels=False)
+
+            for t in ax.texts:
+                t.set_text(t.get_text() + " %")
+
         return fig
 
     def graph_summary(self):
