@@ -440,12 +440,13 @@ class DBTestResults:
         if binary is None:
             binary = any(isinstance(result, BooleanTestResult) for result in self.results)
 
-        test_labels = [column for column in self.dataframe.columns if self.get_column_results(column).tested] \
-                      + ['Dataframe']
+        labels = list(self.dataframe.columns) + ['Dataframe']
+        mask = [not self.get_column_results(column).tested for column in self.dataframe.columns]
+        mask.append(all(mask))
         fig, ax = plt.subplots()
 
         if binary:
-            data = [result.valid for result in self.column_results if result.tested]
+            data = [result.valid for result in self.column_results]
             data.append(all(data))
             data = np.array(data)
 
@@ -456,8 +457,9 @@ class DBTestResults:
                             vmin=0, vmax=1,
                             cmap=color_map,
                             cbar=False,
+                            mask=mask,
                             linewidth=0.1, linecolor='lightgrey',
-                            xticklabels=test_labels, yticklabels=False)
+                            xticklabels=labels, yticklabels=False)
 
             legend_handles = [Patch(color=colors[True], label='Valid'),
                               Patch(color=colors[False], label='Invalid')]
@@ -465,18 +467,18 @@ class DBTestResults:
 
         else:
             data = np.array(
-                [result.num_valid / self.num_rows for result in self.column_results if result.tested]
+                [result.num_valid / self.num_rows for result in self.column_results]
                 + [self.num_rows_valid / self.num_rows]
             )
             step_colors, step_values = self.stylefile.dataframe_style.transposed
             color_map = utils.nonlinear_cmap(step_colors, step_values)
-
             seaborn.heatmap([data],
                             vmin=0, vmax=1,
                             cmap=color_map,
+                            mask=mask,
                             annot=True, fmt='.1%',
                             annot_kws={'rotation': 90},
-                            xticklabels=test_labels, yticklabels=False)
+                            xticklabels=labels, yticklabels=False)
 
             for t in ax.texts:
                 t.set_text(t.get_text() + " %")
