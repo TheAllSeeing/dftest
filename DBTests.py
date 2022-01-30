@@ -15,28 +15,33 @@ from functools import partial, reduce
 from multiprocessing import Process
 # For better type hinting
 from typing import List, Callable, Hashable, Iterable, Union
-
-# For graph graphics
-import matplotlib
-# For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
-# attribute). from-import not used to make the purpose of these methods more explicit.
-import numpy as np
-# For  configuring dataframe printing with pandas.options
-import pandas
-# For displaying coverage and result graphs
-import pandasgui
-# For heatmaps
-import seaborn
 # For graphing
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
 from pandas import DataFrame, Index
 
+# For getting a dataframe in testing (via read_csv) and setting dataframe to not print dimensions (via options
+# attribute). from-import not used to make the purpose of these methods more explicit.
+import numpy as np
+# For  configuring dataframe printing with pandas.options
+import pandas
+# For heatmaps
+import seaborn
+# For checking if running in Colab
+import sys
+
 import utils
 from Test import TestResult, Test
 from style import StyleFile, Style
 
-matplotlib.use('TkAgg')
+
+# Certain GUIs throw an exception when imported or used in colab.
+if 'google.colab' not in sys.modules:
+    # For displaying coverage and result graphs
+    import pandasgui
+    # For graph graphics
+    import matplotlib
+    matplotlib.use('TkAgg')
 
 
 class DBTests:
