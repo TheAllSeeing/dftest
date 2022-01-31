@@ -140,8 +140,8 @@ class DBTests:
         self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns))
 
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
-                         exclude: Iterable[str] = None, name: str = None, column_autodetect: bool = False,
-                         ignore_columns: List[str] = None):
+                         include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
+                         column_autodetect: bool = False, ignore_columns: List[str] = None):
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
@@ -160,8 +160,17 @@ class DBTests:
         :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
         True, this has no effect
         """
-        include = self.dataframe.columns if include is None else include
+        include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
+        dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns
+
+        if include is None and len(include_dtypes) > 0: # If only dtype is specified, select only these columns
+            include = dtype_columns
+        else: # Otherwise, just join both dtype columns and manually specified columns, whatever they are; if both are non, just select all columns.
+            include = self.dataframe.columns if include is None else include
+            include = set(include).union(set(dtype_columns))
+
         exclude = [] if exclude is None else exclude
+
         for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
@@ -468,7 +477,6 @@ class DBTestResults:
         mask = [not self.get_column_results(column).tested for column in self.dataframe.columns]
         mask.append(all(mask))
         fig, ax = plt.subplots()
-
 
         if binary:
             data = [result.valid for result in self.column_results]
