@@ -118,7 +118,7 @@ class DBTests:
                                      f'only (row) or (column, row) params are allowed')
 
     def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
-                 tested_columns: List[str] = None, ignore_columns: List[str] = None):
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = 1):
         """
         Add a test to the Testing Suite.
 
@@ -136,12 +136,16 @@ class DBTests:
 
         :param ignore_columns: columns to ignore in tested-columns autodetection. If `tested_columns` is set,
         columns that appear in it and in here will be ignored also.
+
+        :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
-        self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns))
+        self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns, success_threshold))
 
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
                          include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
-                         column_autodetect: bool = False, ignore_columns: List[str] = None):
+                         column_autodetect: bool = False, ignore_columns: List[str] = None,
+                         success_threshold: float = None):
+
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
         predicate will not only take a row parameter, but also a column parameter preceding it. Individual
@@ -159,6 +163,8 @@ class DBTests:
 
         :param ignore_columns: columns to ignore in tested-columns autodetection. Unless column_autodetect is set to
         True, this has no effect
+
+        :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
         include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
         dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns
@@ -174,7 +180,7 @@ class DBTests:
         for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
-            self.add_test(partial(test_func, column), func_name + ' — ' + column, tested_cols, ignore_columns)
+            self.add_test(partial(test_func, column), func_name + ' — ' + column, success_threshold, tested_cols, ignore_columns)
 
     def clear(self):
         """
