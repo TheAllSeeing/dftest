@@ -273,23 +273,50 @@ class ColumnResults:
         axis.legend()
         return fig
 
-    def graph_validity_heatmap(self):
-        test_labels = [result.from_test.name for result in self.results]
-        data = np.array([result.num_valid / self.num_rows for result in self.results])
+    def graph_validity_heatmap(self, binary: bool = None):
+
+        if binary is None:
+            binary = any(isinstance(result, BooleanTestResult) for result in self.results)
+
+        test_labels = [result.from_test.name for result in self.results] + [self.column]
         fig, ax = plt.subplots()
 
-        step_colors, step_values = self.style.transposed
-        color_map = utils.nonlinear_cmap(step_colors, step_values)
+        if binary:
+            data = [result.success for result in self.results if isinstance(result, IndexTestResult)]
+            data.append(all(data))
+            data = np.array(data)
 
-        seaborn.heatmap([data],
-                        vmin=0, vmax=1,
-                        square=True,
-                        cmap=color_map,
-                        cbar_kws=dict(use_gridspec=False, location="bottom"),
-                        annot=True, fmt='.1%',
-                        xticklabels=test_labels, yticklabels=False)
+            colors = self.style.edges
+            color_map = LinearSegmentedColormap.from_list('edges', colors)
 
-        for t in ax.texts: t.set_text(t.get_text() + " %")
+            seaborn.heatmap([data],
+                            vmin=0, vmax=1,
+                            cmap=color_map,
+                            cbar=False,
+                            linewidth=0.1, linecolor='lightgrey',
+                            xticklabels=test_labels, yticklabels=False)
+
+            legend_handles = [Patch(color=colors[True], label='Valid'),
+                              Patch(color=colors[False], label='Invalid')]
+            plt.legend(handles=legend_handles)
+
+        else:
+            data = np.array(
+                [result.num_valid / self.num_rows for result in self.results if isinstance(result, IndexTestResult)])
+
+            step_colors, step_values = self.style.transposed
+            color_map = utils.nonlinear_cmap(step_colors, step_values)
+
+            seaborn.heatmap([data],
+                            vmin=0, vmax=1,
+                            square=True,
+                            cmap=color_map,
+                            cbar_kws=dict(use_gridspec=False, location="bottom"),
+                            annot=True, fmt='.1%',
+                            xticklabels=test_labels, yticklabels=False)
+
+            for t in ax.texts:
+                t.set_text(t.get_text() + " %")
 
     def graph_validity(self) -> plt.Figure:
         """
@@ -317,7 +344,7 @@ class ColumnResults:
         :param sample_size: if specified, opens the first n invalid rows.
         """
         index = {self.column} if index is None else set(index).union({self.column})
-        failures = [result.get_invalid_rows(self.dataframe)[index] for result in self.results if not result.success]
+        failures = [result.get_invalid_rows(self.dataframe)[index] for result in self.results if not result.success and isinstance(result, IndexTestResult)]
         if sample_size is not None:
             failures = [failure.sample(sample_size) for failure in failures]
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
