@@ -155,6 +155,11 @@ class DBTests:
 
         :param include: the columns this test should run on. Default is all the columns in the dataframe.
 
+        :param include_dtypes: dtypes to include the columns of
+
+        :param exclude: the columns this test should not run on. if include is set to None,
+        this will run on all columns in the dataframe instead of the ones specified
+
         :param name: a name for the test which will be displayed when running it and can be accessed via the `name`
         property. By default (and if given `None`) this will be set to the name of the predicate function.
 
