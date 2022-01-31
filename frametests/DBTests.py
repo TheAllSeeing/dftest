@@ -144,7 +144,7 @@ class DBTests:
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
                          include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
                          column_autodetect: bool = False, ignore_columns: List[str] = None,
-                         success_threshold: float = None):
+                         success_threshold: float = 1):
 
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
