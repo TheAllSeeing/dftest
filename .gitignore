@@ -1,2 +1,7 @@
 __pycache__
 .idea
+Opening
+build/*
+dist/*
+
+frametests.egg-info/
