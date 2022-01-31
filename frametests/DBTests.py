@@ -179,7 +179,7 @@ class DBTests:
         :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
         include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
-        dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns
+        dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns if len(include_dtypes) > 0 else []
 
         if include is None and len(include_dtypes) > 0: # If only dtype is specified, select only these columns
             include = dtype_columns
