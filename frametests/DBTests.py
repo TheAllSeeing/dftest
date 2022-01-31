@@ -234,7 +234,7 @@ class ColumnResults:
         """
         Whether the column completely passes each of the tests ran.
         """
-        return all(result.success for result in self.results) if len(self.results) > 0 else False
+        return all(result.success for result in self.results) if len(self.results) > 0 else True
 
     @property
     def num_tests(self):
