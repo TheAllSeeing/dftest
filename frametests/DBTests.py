@@ -32,10 +32,9 @@ import seaborn
 # For checking if running in Colab
 import sys
 
-import utils
-from Test import TestResult, Test, IndexTestResult, BooleanTestResult
-from style import StyleFile, Style
-
+import frametests.utils as utils
+from frametests.Test import TestResult, Test, IndexTestResult, BooleanTestResult
+from frametests.style import StyleFile, Style
 
 # Certain GUIs throw an exception when imported or used in colab.
 if 'google.colab' not in sys.modules:
@@ -43,6 +42,7 @@ if 'google.colab' not in sys.modules:
     import pandasgui
     # For graph graphics
     import matplotlib
+
     matplotlib.use('TkAgg')
 
 
@@ -225,7 +225,7 @@ class ColumnResults:
         """
         Whether the column completely passes each of the tests ran.
         """
-        return all(result.success for result in self.results)
+        return all(result.success for result in self.results) if len(self.results) > 0 else False
 
     @property
     def num_tests(self):
@@ -251,9 +251,6 @@ class ColumnResults:
         The number of rows where cells in this column passed all tests.
         """
         return self.num_rows - self.num_invalid
-
-    def load_stylefile(self, filepath):
-        self.stylefile = StyleFile(filepath)
 
     def graph_tests_success(self) -> plt.Figure:
         """
@@ -403,12 +400,12 @@ class DBTestResults:
 
     @property
     def num_rows_invalid(self):
-        """Number of rows that came as invalid under at least one test"""
+        """Number of rows that came as invalid under at least one test (Relevant only for Index Tests)"""
         return len(self.invalid_row_index)
 
     @property
     def num_rows_valid(self):
-        """Number of rows that passes all tests ran"""
+        """Number of rows that passes all tests ran (relevant only for Index Tests)"""
         return self.num_rows - self.num_rows_invalid
 
     @property
@@ -444,6 +441,7 @@ class DBTestResults:
         mask = [not self.get_column_results(column).tested for column in self.dataframe.columns]
         mask.append(all(mask))
         fig, ax = plt.subplots()
+
 
         if binary:
             data = [result.valid for result in self.column_results]

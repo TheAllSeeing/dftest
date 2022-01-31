@@ -126,13 +126,13 @@ class TestResult:
 
 
 class BooleanTestResult(TestResult):
-    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: Number):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: bool):
         super(BooleanTestResult, self).__init__(origin_test, columns_tested, num_tested, result)
         self.success = result
 
 
 class NumberTestResult(TestResult):
-    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: bool):
+    def __init__(self, origin_test: Test, columns_tested: Set[str], num_tested: int, result: Number):
         super(NumberTestResult, self).__init__(origin_test, columns_tested, num_tested, result)
         self.num_invalid = self.num_tested - result
         self.success = result
