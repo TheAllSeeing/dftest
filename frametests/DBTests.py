@@ -139,7 +139,14 @@ class DBTests:
 
         :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
-        self.tests.append(Test(test_func, self.dataframe.columns, name, tested_columns, ignore_columns, success_threshold))
+        self.tests.append(Test(
+            predicate=test_func,
+            column_index=self.dataframe.columns,
+            name=name,
+            tested_columns=tested_columns,
+            ignore_columns=ignore_columns,
+            success_threshold=success_threshold
+        ))
 
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
                          include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
@@ -185,7 +192,13 @@ class DBTests:
         for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
-            self.add_test(partial(test_func, column), func_name + ' — ' + column, success_threshold, tested_cols, ignore_columns)
+            self.add_test(
+                test_func=partial(test_func, column),
+                name=func_name + ' — ' + column,
+                tested_columns=tested_cols,
+                ignore_columns=ignore_columns,
+                success_threshold=success_threshold
+            )
 
     def clear(self):
         """
