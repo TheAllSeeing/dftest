@@ -369,6 +369,9 @@ class ColumnResults:
         fig.suptitle(self.column + ' Validity')
         return fig
 
+    def get_invalid_rows(self):
+        return self.dataframe[self.invalid_row_index]
+
     def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
         """
         Opens the invalid rows at the specified columns in the pandasgui interface.
@@ -377,9 +380,9 @@ class ColumnResults:
         :param sample_size: if specified, opens the first n invalid rows.
         """
         index = {self.column} if index is None else set(index).union({self.column})
-        failures = [result.get_invalid_rows(self.dataframe)[index] for result in self.results if not result.success and isinstance(result, IndexTestResult)]
+        failures = self.get_invalid_rows()[index]
         if sample_size is not None:
-            failures = [failure.sample(sample_size) for failure in failures]
+            failures = failures.sample(sample_size)
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
         return pandas_proc.start()
 
