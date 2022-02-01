@@ -6,6 +6,8 @@ from sys import settrace, gettrace
 # For better typehinting
 from typing import List, Callable, Tuple, Set, Hashable, Union, Any
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
+import numpy as np
+import pandas as pd
 from pandas import DataFrame, Series, Index
 # For autodecteting test result type
 from numpy import bool_
@@ -101,6 +103,13 @@ class Test:
             return BooleanTestResult(self, columns_tested, len(dataframe.index), result)
         elif isinstance(result, Number):
             return NumberTestResult(self, columns_tested, len(dataframe.index), result)
+        elif isinstance(result, np.ndarray) or isinstance(result, pd.Series):
+            if result.dtype != np.bool_:
+                raise ValueError(f'Test {self.name}: Invalid Index Test return type: dtype {str(result.dtype)}: {str(result)}')
+            if len(result) != len(dataframe.index):
+                raise ValueError(f'Test {self.name}: Invalid Index Test return: got {len(result)}, expected {len(dataframe.index)}')
+            result = [i for i, cell in enumerate(result) if not cell]
+            return IndexTestResult(self, columns_tested, len(dataframe.index), result, self.success_threshold)
         elif isinstance(result, list):
             return IndexTestResult(self, columns_tested, len(dataframe.index), result, self.success_threshold)
         else:
