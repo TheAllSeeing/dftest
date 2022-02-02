@@ -580,6 +580,23 @@ class DBTestResults:
 
         return fig
 
+    def get_invalid_rows(self):
+        return self.dataframe[self.invalid_row_index]
+
+    def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
+        """
+        Opens the invalid rows at the specified columns in the pandasgui interface.
+
+        :param index: an iterable of the columns to include. This will always include this column.
+        :param sample_size: if specified, opens the first n invalid rows.
+        """
+        failures = self.get_invalid_rows()
+        if sample_size is not None:
+            failures = failures.sample(sample_size)
+        pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
+        return pandas_proc.start()
+
+
     def get_row_results(self, index):
         return RowResults(index,
                           [res for res in self.results
