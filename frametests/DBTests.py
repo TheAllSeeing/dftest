@@ -285,6 +285,9 @@ class ColumnResults:
         """
         return self.num_rows - self.num_invalid
 
+    def load_stylefile(self, filepath):
+        self.stylefile = StyleFile(filepath)
+
     def graph_tests_success(self) -> plt.Figure:
         """
         Generates a stacked bar chart showcasing the number of successes (in green)
@@ -424,6 +427,20 @@ class ColumnResults:
 
             print()
 
+class RowResults:
+    def __init__(self, index, results: List[TestResult]):
+        self.index = index
+        self.results = results
+        self.invalid_cols = set().union(*[result.columns_tested for result in results])
+
+    @property
+    def num_invalid(self):
+        return len(self.invalid_cols)
+
+    @property
+    def num_failed(self):
+        return len(self.results)
+
 
 class DBTestResults:
     plt = plt
@@ -559,9 +576,20 @@ class DBTestResults:
 
         valid_data = [self.num_rows_valid, self.num_rows_invalid]
         ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
-        ax2.legend(["Valid", 'Invalic'])
+        ax2.legend(["Valid", 'Invalid'])
 
         return fig
+
+    def get_row_results(self, index):
+        return RowResults(index,
+                          [res for res in self.results
+                           if isinstance(res, IndexTestResult) and index in res.invalid_row_index])
+
+    def row_results(self):
+        return [self.get_row_results(i) for i in self.dataframe.index]
+
+    def get_error_dense_rows(self, total_thresh: int, col_thresh: int) -> List[RowResults]:
+        return [res for res in self.row_results() if res.num_invalid > col_thresh or res.num_failed > total_thresh]
 
     def print(self, show_valid_cols=False, show_untested=False, stub=False, print_all_failed=False):
         """
