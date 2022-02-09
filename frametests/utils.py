@@ -1,6 +1,8 @@
 # To adjust in HLS
 import colorsys
 # To generate cmap, convert names to hex & rgb
+import re
+
 from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
 
 
@@ -97,3 +99,7 @@ def nonlinear_cmap(step_colors, step_values, name=None):
         color_dict['green'] = color_dict['green'] + ((step_value, rgb[1], rgb[1]),)
         color_dict['blue'] = color_dict['blue'] + ((step_value, rgb[2], rgb[2]),)
     return LinearSegmentedColormap(name, color_dict)
+
+
+def read_config_list(lst):
+    return re.split(r'(?<!\\),( )?', lst)
