@@ -118,7 +118,8 @@ class DBTests:
                                      f'only (row) or (column, row) params are allowed')
 
     def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
-                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = 1):
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = None,
+                 **kwargs):
         """
         Add a test to the Testing Suite.
 
@@ -145,13 +146,14 @@ class DBTests:
             name=name,
             tested_columns=tested_columns,
             ignore_columns=ignore_columns,
-            success_threshold=success_threshold
+            success_threshold=success_threshold,
+            **kwargs
         ))
 
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
                          include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
                          column_autodetect: bool = False, ignore_columns: List[str] = None,
-                         success_threshold: float = 1):
+                         success_threshold: float = None, **kwargs):
 
         """
         Adds a generic test to a group of columns (or all columns). Instead of as in :func:`add_test`, the
@@ -178,12 +180,13 @@ class DBTests:
 
         :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
+        success_threshold = 1 if success_threshold is None else success_threshold
         include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
         dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns if len(include_dtypes) > 0 else []
 
-        if include is None and len(include_dtypes) > 0: # If only dtype is specified, select only these columns
+        if include is None and len(include_dtypes) > 0:  # If only dtype is specified, select only these columns
             include = dtype_columns
-        else: # Otherwise, just join both dtype columns and manually specified columns, whatever they are; if both are non, just select all columns.
+        else:  # Otherwise, just join both dtype columns and manually specified columns, whatever they are; if both are none, just select all columns.
             include = self.dataframe.columns if include is None else include
             include = set(include).union(set(dtype_columns))
 
@@ -197,7 +200,8 @@ class DBTests:
                 name=func_name + ' — ' + column,
                 tested_columns=tested_cols,
                 ignore_columns=ignore_columns,
-                success_threshold=success_threshold
+                success_threshold=success_threshold,
+                **kwargs
             )
 
     def clear(self):
@@ -427,6 +431,7 @@ class ColumnResults:
 
             print()
 
+
 class RowResults:
     def __init__(self, index, results: List[TestResult]):
         self.index = index
@@ -580,6 +585,24 @@ class DBTestResults:
 
         return fig
 
+    def graph_coverage_heatmap(self):
+        data = [result.tested for result in self.column_results]
+        data = np.array(data)
+
+        colors = self.stylefile.dataframe_style.edges
+        color_map = LinearSegmentedColormap.from_list('edges', colors)
+
+        seaborn.heatmap([data],
+                        vmin=0, vmax=1,
+                        cmap=color_map,
+                        cbar=False,
+                        linewidth=0.1, linecolor='lightgrey',
+                        xticklabels=self.dataframe.columns, yticklabels=False)
+
+        legend_handles = [Patch(color=colors[True], label='Valid'),
+                          Patch(color=colors[False], label='Invalid')]
+        plt.legend(handles=legend_handles)
+
     def get_invalid_rows(self):
         return self.dataframe[self.invalid_row_index]
 
@@ -590,17 +613,16 @@ class DBTestResults:
         :param index: an iterable of the columns to include. This will always include this column.
         :param sample_size: if specified, opens the first n invalid rows.
         """
-        failures = self.get_invalid_rows()
+        index = self.dataframe.index if index is None else index
+        failures = self.get_invalid_rows()[index]
         if sample_size is not None:
             failures = failures.sample(sample_size)
         pandas_proc = Process(target=pandasgui.show, args=tuple(failures))
         return pandas_proc.start()
 
-
     def get_row_results(self, index):
-        return RowResults(index,
-                          [res for res in self.results
-                           if isinstance(res, IndexTestResult) and index in res.invalid_row_index])
+        return RowResults(index, [res for res in self.results
+                                  if isinstance(res, IndexTestResult) and index in res.invalid_row_index])
 
     def row_results(self):
         return [self.get_row_results(i) for i in self.dataframe.index]

@@ -22,7 +22,7 @@ class Test:
     """
 
     def __init__(self, predicate: Callable[[DataFrame], List[Hashable]], column_index: Index = None, name: str = None,
-                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold=1):
+                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold=1, **kwargs):
         """
         :class:`Test` class constructor.
 
@@ -43,7 +43,7 @@ class Test:
         """
         self.predicate = predicate
         self.column_index = column_index
-        self.success_threshold = success_threshold
+        self.kwargs = kwargs
 
         if name is None:
             self.name = self.predicate.__name__
@@ -52,9 +52,15 @@ class Test:
 
         self.tested_columns = set() if tested_columns is None else set(tested_columns)
         self.ignore_columns = set() if ignore_columns is None else set(ignore_columns)
+        self.success_threshold = 1 if success_threshold is None else success_threshold
 
         if column_index is None and (tested_columns is None or len(tested_columns) == 0):
             raise ValueError("Tried to initialize test with no column index and no specified test columns!")
+
+    @property
+    def uses_kwargs(self):
+        return self.predicate.__code__.co_flags == 75
+
 
     def test(self, test_target: Any) -> Tuple[Union[bool, List[Hashable]], Set[str]]:
         """
@@ -65,7 +71,7 @@ class Test:
         # If tested_columns is set then no autodetection of tested columns is needed, just test the row
         # and return the defined tested columns (minus ones specified to ignore).
         if len(self.tested_columns) > 0:
-            return self.predicate(test_target), self.tested_columns.difference(self.ignore_columns)
+            return self.predicate(test_target, **self.kwargs), self.tested_columns.difference(self.ignore_columns)
 
         # Else, the autodetecting tested columns is needed.
         # This is done via initializing an empty accessed_columns
@@ -91,7 +97,7 @@ class Test:
 
         # Make sure to eventually set the trace function back.
         try:
-            test_result = self.predicate(test_target)
+            test_result = self.predicate(test_target, **self.kwargs)
         finally:
             settrace(original_trace)
 
