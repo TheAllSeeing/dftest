@@ -88,7 +88,8 @@ class DBTests:
             spec.loader.exec_module(module)
             # module_path = filename.replace(os.path.sep, '.')
             # module = __import__(module_path)
-            test_funcs_to_add = [getattr(module, attr) for attr in dir(module) if attr.startswith('test')]
+            test_funcs_to_add = [getattr(module, attr) for attr in dir(module)
+                                 if re.compile('^[dD][Ff][_]?[Tt]est[_A-Z]').match(attr)]
             test_funcs_to_add = list(filter(callable, test_funcs_to_add))  # make sure to only take funcs
             test_funcs += test_funcs_to_add
 
