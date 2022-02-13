@@ -640,7 +640,7 @@ class DBTestResults:
         ax1.legend(['Tested', 'Untested'])
 
         valid_data = [self.num_rows_valid, self.num_rows_invalid]
-        ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data), labels=['Valid', 'Invalid'])
+        ax2.pie(valid_data, colors=colors, autopct=utils.make_autopct(valid_data))
         ax2.legend(["Valid", 'Invalid'])
 
         return fig
