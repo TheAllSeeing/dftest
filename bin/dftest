@@ -16,6 +16,14 @@ from dftest.DFTests import DFTests
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(prog='dftest', formatter_class=argparse.RawTextHelpFormatter)
     arg_parser.add_argument('--version', action='version', version='%(prog)s 2.0', help='print version number and exit')
+
+    arg_parser.add_argument('-p', '--print', action='store_true', help='print results')
+    arg_parser.add_argument('-q', '--quiet', action='store_true', help='print results')
+    arg_parser.add_argument('-C', '--column', nargs=1, help='show results of specific column')
+    arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results', metavar='GRAPH_TYPE',
+                            choices=['coverage', 'summary', 'validity', 'tests', 'validity-binary',
+                                     'validity-nonbinary'])
+
     res_df_group = arg_parser.add_mutually_exclusive_group()
     res_df_group.add_argument('-R', '--results', metavar='RESULTS', nargs=1, help='specify results dill')
     df_group = res_df_group.add_argument_group()
@@ -24,15 +32,7 @@ if __name__ == '__main__':
                                                                                          '- python path to DataFrame object\n'
                                                                                          '- python path to DataFrame supplier function\n'
                                                                                          '- file path a file with a dataframe in any legal pandas format\n')
-    df_group.add_argument('--kwargs', nargs='+', metavar='TEST:KWARGS', help='specify kwargs for tests - e.g '
-                                                                             'range:top=3;bottom=2 will pass kwargs '
-                                                                             'top=3,bottom=2 to test_range')
-    arg_parser.add_argument('-p', '--print', action='store_true', help='print results')
-    arg_parser.add_argument('-q', '--quiet', action='store_true', help='print results')
-    arg_parser.add_argument('-C', '--column', nargs=1, help='show results of specific column')
-    arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results',
-                            choices=['coverage', 'summary', 'validity', 'tests', 'validity-binary', 'validity-nonbinary'])
-    arg_parser.add_argument('files', metavar='FILE_OR_DIR', nargs='*', help='files or dirs to search for tests')
+    arg_parser.add_argument('--files', metavar='FILE_OR_DIR', nargs='*', help='files or dirs to search for tests')
 
     args = arg_parser.parse_args()
 
