@@ -7,6 +7,7 @@ import datetime
 import importlib
 import operator
 # For splitting with delimiter escape in conf parsing
+import os
 import re
 # For patrsing test conf files
 from configparser import ConfigParser
@@ -15,7 +16,7 @@ from functools import partial, reduce
 # For running pandasgui in the background (so execution is not blocked until user closes it)
 from multiprocessing import Process
 # For better type hinting
-from typing import List, Callable, Hashable, Iterable, Union
+from typing import List, Callable, Hashable, Iterable, Union, Tuple
 # For graphing
 from matplotlib import pyplot as plt
 # For better type hinting, and detecting uses of Series.__getitem__ specifically.
