@@ -49,7 +49,7 @@ if 'google.colab' not in sys.modules:
     matplotlib.use('TkAgg')
 
 
-class DBTests:
+class DFTests:
     """
     a testing suite for the data integrity of pandas dataframes.
 
@@ -66,7 +66,14 @@ class DBTests:
         self.tests: List[Test] = []
         self.columns_tested = set()
 
-    def load_files(self, *files):
+    def load_files(self, *files, test_kwargs):
+        """
+        Loads test functions from a given module by path. Functions are detected as any callables with a "test_"
+        prefix.
+
+        :param files: a list of paths to .py files containing test functions. Directories will be searched
+        for any .py file in the directory tree.
+        """
 
         config = dftest.options.DecoratorConfig.options
 
@@ -280,7 +287,7 @@ class DBTests:
             results.append(test.run(self.dataframe))
         print("Finished testing")
 
-        return DBTestResults(
+        return DFTestResults(
             self.dataframe,
             datetime.datetime.now().strftime('%s'),
             results
@@ -508,7 +515,7 @@ class RowResults:
         return len(self.results)
 
 
-class DBTestResults:
+class DFTestResults:
     plt = plt
 
     def __init__(self, dataframe, timestamp, results: List[TestResult]):

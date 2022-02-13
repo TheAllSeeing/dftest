@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
 
-from dftest.DBTests import DBTests
+from dftest.DFTests import DFTests
 
 if __name__ == '__main__':
     df = pd.DataFrame(np.random.randint(0, 100, size=(100, 4)), columns=list('ABCD'))
     df['E'] = np.random.choice([chr(i) for i in range(97, 121)], size=100)
 
-    dbtests = DBTests(df)
+    dbtests = DFTests(df)
 
     def percent_test(column: str, dataframe: pd.DataFrame):
         valid_arr = dataframe[column].apply(lambda x: 0 <= x <= 100)

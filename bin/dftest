@@ -11,7 +11,7 @@ from multiprocessing import Process
 import pandas
 
 from dftest import utils
-from dftest.DBTests import DBTests
+from dftest.DFTests import DFTests
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(prog='dftest', formatter_class=argparse.RawTextHelpFormatter)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
             else:
                 df = df_obj
 
-        dftests = DBTests(df)
+        dftests = DFTests(df)
 
         file_args = args.files
         dftests.load_files(*file_args)

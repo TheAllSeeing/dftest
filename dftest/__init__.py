@@ -1,4 +1,4 @@
-from dftest.DBTests import DBTests
+from dftest.DFTests import DFTests
 import dftest.tests as tests
 from dftest.options import options
 

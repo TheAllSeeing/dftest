@@ -1,12 +1,12 @@
 import pandas
 
 from dftest import tests
-from dftest.DBTests import DBTests
+from dftest.DFTests import DFTests
 
 if __name__ == '__main__':
     # Download from https://github.com/metmuseum/openaccess/raw/master/MetObjects.csv
     df = pandas.read_csv('MetObjects.csv')
-    dbtests = DBTests(df)
+    dbtests = DFTests(df)
 
     object_num_test = dftests.match_test(r'([0-9]{2}|[0-9]{4}).[0-9]{1,4}.[0-9]{1,4}')
 
