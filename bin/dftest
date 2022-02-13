@@ -10,11 +10,11 @@ from multiprocessing import Process
 
 import pandas
 
-from frametests import utils
-from frametests.DBTests import DBTests
+from dftest import utils
+from dftest.DBTests import DBTests
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(prog='frametests', formatter_class=argparse.RawTextHelpFormatter)
+    arg_parser = argparse.ArgumentParser(prog='dftest', formatter_class=argparse.RawTextHelpFormatter)
     arg_parser.add_argument('--version', action='version', version='%(prog)s 2.0', help='print version number and exit')
     res_df_group = arg_parser.add_mutually_exclusive_group()
     res_df_group.add_argument('-R', '--results', metavar='RESULTS', nargs=1, help='specify results dill')

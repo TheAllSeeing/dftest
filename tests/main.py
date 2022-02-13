@@ -1,7 +1,7 @@
 import pandas
 
-from frametests import tests
-from frametests.DBTests import DBTests
+from dftest import tests
+from dftest.DBTests import DBTests
 
 if __name__ == '__main__':
     # Download from https://github.com/metmuseum/openaccess/raw/master/MetObjects.csv

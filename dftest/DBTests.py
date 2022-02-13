@@ -34,10 +34,10 @@ import seaborn
 # For checking if running in Colab
 import sys
 
-import frametests.options
-import frametests.utils as utils
-from frametests.Test import TestResult, Test, IndexTestResult, BooleanTestResult
-from frametests.style import StyleFile, Style
+import dftest.options
+import dftest.utils as utils
+from dftest.Test import TestResult, Test, IndexTestResult, BooleanTestResult
+from dftest.style import StyleFile, Style
 
 # Certain GUIs throw an exception when imported or used in colab.
 if 'google.colab' not in sys.modules:
@@ -68,7 +68,7 @@ class DBTests:
 
     def load_files(self, *files):
 
-        config = frametests.options.DecoratorConfig.options
+        config = dftest.options.DecoratorConfig.options
 
         file_list: List[str] = []
         for filename in files:
