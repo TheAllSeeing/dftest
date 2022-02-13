@@ -272,9 +272,11 @@ class DBTests:
         """
         results = []
         for i, test in enumerate(self.tests):
-            print(f'\rTesting {round(i / len(self.tests) * 100):02d}% (#{i + 1}: {test.name})', end='')
+            print(f'Testing {round(i / len(self.tests) * 100):02d}% (#{i + 1}: {test.name})')
+            sys.stdout.write("\033[F")  # Carriage Return
+            sys.stdout.write("\033[K")  # Clear line
             results.append(test.run(self.dataframe))
-        print('\rFinished testing')
+        print("Finished testing")
 
         return DBTestResults(
             self.dataframe,
