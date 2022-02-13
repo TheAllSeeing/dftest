@@ -4,6 +4,7 @@ from __future__ import annotations
 # For creating a test for a specific column out of a more generic one
 import datetime
 # For compressing generic column, row tests to individual column
+import importlib
 import operator
 # For splitting with delimiter escape in conf parsing
 import re
@@ -32,6 +33,7 @@ import seaborn
 # For checking if running in Colab
 import sys
 
+import frametests.options
 import frametests.utils as utils
 from frametests.Test import TestResult, Test, IndexTestResult, BooleanTestResult
 from frametests.style import StyleFile, Style
@@ -62,6 +64,60 @@ class DBTests:
         self.dataframe: DataFrame = df
         self.tests: List[Test] = []
         self.columns_tested = set()
+
+    def load_files(self, *files):
+
+        config = frametests.options.DecoratorConfig.options
+
+        file_list: List[str] = []
+        for filename in files:
+            if os.path.isdir(filename):
+                for dirpaths, dirs, file_list in os.walk('', topdown=True):
+                    file_list += [os.path.join(dirpath, file) for dirpath, file in zip(dirpaths, file_list) if
+                                  file.endswith('.py')]
+            elif os.path.isfile(filename) or os.path.islink(filename):
+                file_list.append(filename)
+
+        test_funcs = []
+        sys.path.append('.')
+        for i, filepath in enumerate(file_list):
+            spec = importlib.util.spec_from_file_location(f'somemodule_{i}', filepath)  # Gets module specifications
+            # Gets module object and loads it
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            # module_path = filename.replace(os.path.sep, '.')
+            # module = __import__(module_path)
+            test_funcs_to_add = [getattr(module, attr) for attr in dir(module) if attr.startswith('test')]
+            test_funcs_to_add = list(filter(callable, test_funcs_to_add))  # make sure to only take funcs
+            test_funcs += test_funcs_to_add
+
+        for func in test_funcs:
+            if func.__code__.co_argcount == 1:
+                if config is not None and func in config.keys():
+                    args = config[func]
+                    name = args.pop('name', None)
+                    tested_columns = args.pop('tested_columns', None)
+                    ignore_columns = args.pop('ignore_columns', None)
+                    success_threshold = args.pop('success_threshold', None)
+                    self.add_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
+                else:
+                    self.add_test(func)
+            elif func.__code__.co_argcount == 2:
+                if config is not None and func in config.keys():
+                    args = config[func]
+
+                    include = args.pop('include', None)
+                    include_dtypes = args.pop('include_dtypes', None)
+                    exclude = args.pop('exclude', None)
+                    name = args.pop('name', None)
+                    column_autodetect = args.pop('column_autodetect', False)
+                    ignore_columns = args.pop('ignore_columns', None)
+                    success_threshold = args.pop('success_threshold', None)
+
+                    self.add_generic_test(func, include, include_dtypes, exclude, name, column_autodetect,
+                                          ignore_columns, success_threshold, **args)
+                else:
+                    self.add_generic_test(func)
 
     def load_config(self, config_file: str):
         """
@@ -235,6 +291,7 @@ class ColumnResults:
     to stdout, displaying summary graphs for the column or individual tests and showing the invalid rows for the column
     in pandasgui.
     """
+    plt = plt
 
     def __init__(self, column: str, results: List[TestResult], dataframe: DataFrame, style: Style):
         """
@@ -358,7 +415,7 @@ class ColumnResults:
             for t in ax.texts:
                 t.set_text(t.get_text() + " %")
 
-    def graph_validity(self) -> plt.Figure:
+    def graph_summary(self) -> plt.Figure:
         """
         Generates a pie graph of the column validity as a pyplot figure
 

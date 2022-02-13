@@ -1,0 +1,113 @@
+#!/bin/python3
+import argparse
+import ast
+import os.path
+import re
+import sys
+
+import dill
+from multiprocessing import Process
+
+import pandas
+
+from frametests import utils
+from frametests.DBTests import DBTests
+
+if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser(prog='frametests', formatter_class=argparse.RawTextHelpFormatter)
+    arg_parser.add_argument('--version', action='version', version='%(prog)s 2.0', help='print version number and exit')
+    res_df_group = arg_parser.add_mutually_exclusive_group()
+    res_df_group.add_argument('-R', '--results', metavar='RESULTS', nargs=1, help='specify results dill')
+    df_group = res_df_group.add_argument_group()
+    df_group.add_argument('-d', '--dump', metavar='DUMP_FILE', nargs=1, help='dump results to file')
+    df_group.add_argument('-f', '--dataframe', metavar='DATAFRAME', required=False, help='Specify either \n'
+                                                                                         '- python path to DataFrame object\n'
+                                                                                         '- python path to DataFrame supplier function\n'
+                                                                                         '- file path a file with a dataframe in any legal pandas format\n')
+    df_group.add_argument('--kwargs', nargs='+', metavar='TEST:KWARGS', help='specify kwargs for tests - e.g '
+                                                                             'range:top=3;bottom=2 will pass kwargs '
+                                                                             'top=3,bottom=2 to test_range')
+    arg_parser.add_argument('-p', '--print', action='store_true', help='print results')
+    arg_parser.add_argument('-q', '--quiet', action='store_true', help='print results')
+    arg_parser.add_argument('-C', '--column', nargs=1, help='show results of specific column')
+    arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results',
+                            choices=['coverage', 'summary', 'validity', 'tests', 'validity-binary', 'validity-nonbinary'])
+    arg_parser.add_argument('files', metavar='FILE_OR_DIR', nargs='*', help='files or dirs to search for tests')
+
+    args = arg_parser.parse_args()
+
+    if args.quiet:
+       utils.silence_output()
+
+    if args.results is None and (args.dataframe is None or len(args.files) == 0) \
+            or args.results is not None and (args.dataframe is not None or len(args.files) > 0):
+        raise ValueError('Must specify either result dump, or both dataframe and files!')
+
+    if args.results is not None:
+        with open(args.results[0], 'rb') as dumpfile:
+            results = dill.load(dumpfile)
+    else:
+        if os.path.isfile(args.dataframe):
+            if args.dataframe.endswith('.csv'):
+                df = pandas.read_csv(args.dataframe)
+            elif args.dataframe.endswith('.tsv'):
+                df = pandas.read_csv(args.dataframe, delimiter='\t')
+            elif args.dataframe.endswith('.json'):
+                df = pandas.read_json(args.dataframe)
+            elif args.dataframe.endswith('.xlsx'):
+                df = pandas.read_excel(args.dataframe)
+            else:
+                raise ValueError('Invalid dataframe file: unrecognized extension: ' + args.dataframe)
+
+        else:
+            sys.path.append('.')
+            df_obj = utils.get_func_from_addr(args.dataframe)
+            if callable(df_obj):
+                df = df_obj()
+            else:
+                df = df_obj
+
+        dftests = DBTests(df)
+
+        file_args = args.files
+        dftests.load_files(*file_args)
+
+        results = dftests.run()
+
+        if args.dump is not None:
+            with open(args.dump[0], 'wb+') as dumpfile:
+                dill.dump(results, dumpfile)
+
+    if args.column is None:
+        if not args.quiet:
+            results.print()
+
+        if args.graph is not None:
+            if 'summary' in args.graph:
+                results.graph_summary()
+            if 'coverage' in args.graph:
+                results.graph_coverage_heatmap()
+            if 'validity' in args.graph:
+                results.graph_validity_heatmap()
+            if 'validity-binary' in args.graph:
+                results.graph_validity_heatmap(binary=True)
+            if 'validity-nonbinary' in args.graph:
+                results.graph_validity_heatmap(binary=True)
+            results.plt.show()
+    else:
+        results = results.get_column_results(args.column[0])
+        if not args.quiet:
+            results.print()
+
+        if args.graph is not None:
+            if 'summary' in args.graph:
+                results.graph_summary()
+            if 'tests' in args.graph:
+                results.graph_tests_success()
+            if 'validity' in args.graph:
+                results.graph_validity_heatmap()
+            if 'validity-binary' in args.graph:
+                results.graph_validity_heatmap(binary=True)
+            if 'validity-nonbinary' in args.graph:
+                results.graph_validity_heatmap(binary=True)
+            results.plt.show()
