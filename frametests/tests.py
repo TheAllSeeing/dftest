@@ -1,7 +1,7 @@
 # For better type hinting
 from typing import Any, List, Union, Iterable
 # For dataframe type hinting
-from pandas import DataFrame, Series
+from pandas import DataFrame
 
 
 def from_bool_arr(bool_arr: Iterable[bool]):
@@ -86,13 +86,13 @@ def simple_type_test(data_types: Union[List[type], type]):
     return func
 
 
-def is_not_null(column: str, dataframe: DataFrame):
+def test_not_null(column: str, dataframe: DataFrame):
     return from_bool_arr(~dataframe[column].isnull())
 
 
-is_fraction = in_range_test(0, 1, True, True)
-is_positive = in_range_test(0, left_inclusive=False)
+test_fraction = in_range_test(0, 1, True, True)
+test_positive = in_range_test(0, left_inclusive=False)
 
-is_integer = simple_type_test(int)
-is_float = simple_type_test(float)
-is_str = simple_type_test(str)
+test_integer = simple_type_test(int)
+test_float = simple_type_test(float)
+test_str = simple_type_test(str)
