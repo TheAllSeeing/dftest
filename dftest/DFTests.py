@@ -96,6 +96,8 @@ class DFTests:
             test_funcs_to_add = [getattr(module, attr) for attr in dir(module)
                                  if re.compile('^[dD][Ff][_]?[Tt]est[_A-Z]').match(attr)]
             test_funcs_to_add = list(filter(callable, test_funcs_to_add))  # make sure to only take funcs
+            if len(test_funcs_to_add) == 0:
+                utils.warning(f'Warning: no tests found in {filepath}')
             test_funcs += test_funcs_to_add
 
         for func in test_funcs:
