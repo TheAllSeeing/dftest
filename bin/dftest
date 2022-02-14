@@ -41,7 +41,9 @@ if __name__ == '__main__':
 
     if args.results is None and (args.dataframe is None or args.files is not None) \
             or args.results is not None and (args.dataframe is not None or args.files is not None):
-        raise ValueError('Must specify either result dump, or both dataframe and files!')
+        specified = [opt for opt in ["results", "dataframe", "files"] if vars(args)[opt] is not None]
+        raise ValueError(f'Specified {",".join(specified)}. Must specify either result dump, or both dataframe '
+                         f'and files!')
 
     if args.results is not None:
         with open(args.results[0], 'rb') as dumpfile:
