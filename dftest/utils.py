@@ -2,8 +2,16 @@
 import colorsys
 # To generate cmap, convert names to hex & rgb
 import re
+from enum import Enum
 
 from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
+from termcolor import colored
+
+
+class Color(Enum):
+    GREEN = 'green'
+    RED = 'red'
+    YELLOW = 'yellow'
 
 
 def make_autopct(data):
@@ -103,3 +111,21 @@ def nonlinear_cmap(step_colors, step_values, name=None):
 
 def read_config_list(lst):
     return re.split(r'(?<!\\),( )?', lst)
+
+
+def colortext(text: str, color: Color, marker=False):
+    if marker:
+        return colored(text, on_color=color.value)
+    return colored(text, color.value)
+
+
+def confirm(text: str):
+    print(colortext(text, Color.GREEN))
+
+
+def error(text: str):
+    print(colortext(text, Color.RED))
+
+
+def warning(text: str):
+    print(colortext(text, Color.YELLOW))
