@@ -39,7 +39,7 @@ if __name__ == '__main__':
     if args.quiet:
        utils.silence_output()
 
-    if args.results is None and (args.dataframe is None or args.files is not None) \
+    if args.results is None and (args.dataframe is None and args.files is None) \
             or args.results is not None and (args.dataframe is not None or args.files is not None):
         specified = [opt for opt in ["results", "dataframe", "files"] if vars(args)[opt] is not None]
         raise ValueError(f'Specified {",".join(specified)}. Must specify either result dump, or both dataframe '
