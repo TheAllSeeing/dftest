@@ -32,15 +32,15 @@ if __name__ == '__main__':
                                                                                          '- python path to DataFrame object\n'
                                                                                          '- python path to DataFrame supplier function\n'
                                                                                          '- file path a file with a dataframe in any legal pandas format\n')
-    arg_parser.add_argument('--files', metavar='FILE_OR_DIR', nargs='*', help='files or dirs to search for tests')
+    arg_parser.add_argument('--files', metavar='FILE_OR_DIR', nargs='+', help='files or dirs to search for tests')
 
     args = arg_parser.parse_args()
 
     if args.quiet:
        utils.silence_output()
 
-    if args.results is None and (args.dataframe is None or len(args.files) == 0) \
-            or args.results is not None and (args.dataframe is not None or len(args.files) > 0):
+    if args.results is None and (args.dataframe is None or args.files is not None) \
+            or args.results is not None and (args.dataframe is not None or args.files is not None):
         raise ValueError('Must specify either result dump, or both dataframe and files!')
 
     if args.results is not None:
