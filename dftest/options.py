@@ -1,14 +1,23 @@
-class DecoratorConfig:
-    options = {}
+_options_dict = {}
+
+
+def get_test_options(test_func: callable):
+    return _options_dict.get(test_func, None)
 
 
 def options(**kwargs):
+    """
+    Parametric Decorator to declare test options
+    :param kwargs:
+    :return:
+    """
+
     def decorator(func):
-        DecoratorConfig.options[func] = kwargs
+        _options_dict[func] = kwargs
         return func
 
     return decorator
 
 
 def declare_options(func, **kwargs):
-    DecoratorConfig.options[func] = kwargs
+    _options_dict.options[func] = kwargs

@@ -34,7 +34,7 @@ import seaborn
 # For checking if running in Colab
 import sys
 
-import dftest.options
+import dftest
 import dftest.utils as utils
 from dftest.Test import TestResult, Test, IndexTestResult, BooleanTestResult
 from dftest.style import StyleFile, Style
@@ -75,8 +75,6 @@ class DFTests:
         for any .py file in the directory tree.
         """
 
-        config = dftest.options.DecoratorConfig.options
-
         file_list: List[str] = []
         for filename in files:
             if os.path.isdir(filename):
@@ -101,32 +99,39 @@ class DFTests:
             test_funcs += test_funcs_to_add
 
         for func in test_funcs:
-            if func.__code__.co_argcount == 1:
-                if config is not None and func in config.keys():
-                    args = config[func]
-                    name = args.pop('name', None)
-                    tested_columns = args.pop('tested_columns', None)
-                    ignore_columns = args.pop('ignore_columns', None)
-                    success_threshold = args.pop('success_threshold', None)
-                    self.add_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
-                else:
-                    self.add_test(func)
-            elif func.__code__.co_argcount == 2:
-                if config is not None and func in config.keys():
-                    args = config[func]
 
+            args = dftest.get_test_options(func)
+
+            if args is not None: # If options were specified for test
+                # get shared options
+                name = args.pop('name', None)
+                ignore_columns = args.pop('ignore_columns', None)
+                success_threshold = args.pop('success_threshold', None)
+
+                if func.__code__.co_argcount == 1:  # Concrete tests
+                    tested_columns = args.pop('tested_columns', None)
+                    self.add_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
+
+                elif func.__code__.co_argcount == 2: # Generic Tests
                     include = args.pop('include', None)
                     include_dtypes = args.pop('include_dtypes', None)
                     exclude = args.pop('exclude', None)
-                    name = args.pop('name', None)
                     column_autodetect = args.pop('column_autodetect', False)
-                    ignore_columns = args.pop('ignore_columns', None)
-                    success_threshold = args.pop('success_threshold', None)
-
                     self.add_generic_test(func, include, include_dtypes, exclude, name, column_autodetect,
                                           ignore_columns, success_threshold, **args)
                 else:
+                    raise ValueError(f'test function with invalid params: {func.__name__} '
+                                     f'takes {func.__code__.co_varnames[func.__code__.co_argcount]}\n'
+                                     f'Only column, dataframe, **kwargs allowed')
+            else:
+                if func.__code__.co_argcount == 1:
+                    self.add_test(func)
+                elif func.__code__.co_argcount == 2:
                     self.add_generic_test(func)
+                else:
+                    raise ValueError(f'test function with invalid params: {func.__name__} '
+                                     f'takes {func.__code__.co_varnames[func.__code__.co_argcount]}\n'
+                                     f'Only column, dataframe, **kwargs allowed')
 
     def load_config(self, config_file: str):
         """
