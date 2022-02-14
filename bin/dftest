@@ -32,6 +32,9 @@ if __name__ == '__main__':
                                                                                          '- python path to DataFrame object\n'
                                                                                          '- python path to DataFrame supplier function\n'
                                                                                          '- file path a file with a dataframe in any legal pandas format\n')
+    df_group.add_argument('--kwargs', nargs='+', metavar='TEST:KWARGS', help='specify kwargs for tests - e.g '
+                                                                             'range:top=3;bottom=2 will pass kwargs '
+                                                                             'top=3,bottom=2 to test_range')
     arg_parser.add_argument('--files', metavar='FILE_OR_DIR', nargs='*', help='files or dirs to search for tests')
 
     args = arg_parser.parse_args()
@@ -68,6 +71,21 @@ if __name__ == '__main__':
                 df = df_obj
 
         dftests = DFTests(df)
+
+
+        kwargs = {}
+        for test_kwargs in args.kwargs:
+            test_name = test_kwargs.split(':')[0]
+            # Raw kwargs string
+            args = test_kwargs.split(':')[1:]
+            # Split by comma into key=value strings, ignoring commas in quotes.
+            args = re.compile(",(?=(?:[^']*'[^']*')*[^']*$)").split(args)
+            # Split into (key, value) pairs, by first equal sign
+            args = [tuple(arg.split('=', 1)) for arg in args]
+            # Make into dictionary
+            args = {arg[0]: ast.literal_eval(arg[1]) for arg in args}
+            # set the kwargs dict for the given test
+            kwargs['test_' + test_name] = args
 
         file_args = args.files
         dftests.load_files(*file_args)

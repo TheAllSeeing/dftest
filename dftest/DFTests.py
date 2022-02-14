@@ -66,7 +66,7 @@ class DFTests:
         self.tests: List[Test] = []
         self.columns_tested = set()
 
-    def load_files(self, *files):
+    def load_files(self, *files, test_kwargs={}):
         """
         Loads test functions from a given module by path. Functions are detected as any callables with a "test_"
         prefix.
