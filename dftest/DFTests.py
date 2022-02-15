@@ -40,7 +40,7 @@ from dftest.Test import TestResult, Test, IndexTestResult, BooleanTestResult
 from dftest.style import StyleFile, Style
 
 # Certain GUIs throw an exception when imported or used in colab.
-if 'ipykernel' not in sys.modules:
+if not utils.in_colab():
     # For displaying coverage and result graphs
     import pandasgui
     # For graph graphics

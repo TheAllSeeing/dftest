@@ -2,6 +2,7 @@
 import colorsys
 # To generate cmap, convert names to hex & rgb
 import re
+import sys
 from enum import Enum
 
 from matplotlib.colors import cnames, to_rgb, hex2color, LinearSegmentedColormap
@@ -111,6 +112,18 @@ def nonlinear_cmap(step_colors, step_values, name=None):
 
 def read_config_list(lst):
     return re.split(r'(?<!\\),( )?', lst)
+
+
+def in_notebook():
+    return 'ipykernel' in sys.modules
+
+
+def in_colab():
+    try:
+        import IPython
+        return in_notebook() and 'google.colab' in IPython.get_ipython().config.get('google.colab', '')
+    except ImportError:
+        return False
 
 
 def colortext(text: str, color: Color, marker=False):
