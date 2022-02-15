@@ -110,6 +110,9 @@ def nonlinear_cmap(step_colors, step_values, name=None):
         color_dict['blue'] = color_dict['blue'] + ((step_value, rgb[2], rgb[2]),)
     return LinearSegmentedColormap(name, color_dict)
 
+def order_columns(origin_list, subset_list):
+    order_dict = {x: i for i, x in enumerate(origin_list)}
+    return sorted(subset_list, key=lambda x: order_dict[x])
 
 def read_config_list(lst):
     return re.split(r'(?<!\\),( )?', lst)

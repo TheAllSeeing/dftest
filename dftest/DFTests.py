@@ -499,6 +499,7 @@ class ColumnResults:
 
                 columns_to_include = set() if columns_to_include is None else set(columns_to_include)
                 columns_to_include = columns_to_include.union({self.column})
+                columns_to_include = utils.order_columns(self.dataframe.index, columns_to_include)
                 if not len(to_print.index) == 0:
                     print(to_print[columns_to_include])
                 if not print_all_failed and result.num_invalid > 10:
