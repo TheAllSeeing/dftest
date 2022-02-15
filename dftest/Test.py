@@ -180,4 +180,4 @@ class IndexTestResult(TestResult):
         :param src_dataframe: the dataframe the test was ran on
         :return: a dataframe containing each of the rows invalid under this test
         """
-        return src_dataframe.iloc[self.invalid_row_index]
+        return src_dataframe.iloc[sorted(self.invalid_row_index)]

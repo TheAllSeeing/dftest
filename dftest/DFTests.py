@@ -452,7 +452,7 @@ class ColumnResults:
         return fig
 
     def get_invalid_rows(self):
-        return self.dataframe[self.invalid_row_index]
+        return self.dataframe.iloc[sorted(self.invalid_row_index)]
 
     def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
         """
@@ -679,7 +679,7 @@ class DFTestResults:
         plt.legend(handles=legend_handles)
 
     def get_invalid_rows(self):
-        return self.dataframe[self.invalid_row_index]
+        return self.dataframe.iloc[sorted(self.invalid_row_index)]
 
     def open_invalid_rows(self, index: Union[Index, List[str]] = None, sample_size: int = None):
         """

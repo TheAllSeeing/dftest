@@ -1,14 +1,15 @@
 #!/bin/python3
+from __future__ import annotations
 import argparse
-import ast
 import os.path
-import re
 import sys
-
-import dill
 from multiprocessing import Process
 
+import dill
+
+
 import pandas
+import pandasgui
 
 from dftest import utils
 from dftest.DFTests import DFTests
@@ -17,18 +18,23 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(prog='dftest', formatter_class=argparse.RawTextHelpFormatter)
     arg_parser.add_argument('--version', action='version', version='%(prog)s 2.0', help='print version number and exit')
 
-    arg_parser.add_argument('-p', '--print', action='store_true', help='print results')
     arg_parser.add_argument('-q', '--quiet', action='store_true', help='print results')
-    arg_parser.add_argument('-C', '--column', nargs=1, help='show results of specific column')
+    arg_parser.add_argument('-c', '--column', nargs=1, help='show results of specific column')
     arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results', metavar='GRAPH_TYPE',
                             choices=['coverage', 'summary', 'validity', 'tests', 'validity-binary',
                                      'validity-nonbinary'])
 
+    normal_invalid_group = arg_parser.add_mutually_exclusive_group()
+    normal_invalid_group.add_argument('-p', '--print', action='store_true', help='print results')
+    normal_invalid_group.add_argument('--show-invalids', action='store_true', help='print a ')
+
+    arg_parser.add_argument('--invalids-format', nargs=1, choices=['csv', 'tsv', 'json', 'repr', 'gui'], help='specify format to print invalids')
+
     res_df_group = arg_parser.add_mutually_exclusive_group()
-    res_df_group.add_argument('-R', '--results', metavar='RESULTS', nargs=1, help='specify results dill')
+    res_df_group.add_argument('--results', metavar='RESULTS', nargs=1, help='specify results dill')
     df_group = res_df_group.add_argument_group()
     df_group.add_argument('-d', '--dump', metavar='DUMP_FILE', nargs=1, help='dump results to file')
-    df_group.add_argument('-f', '--dataframe', metavar='DATAFRAME', required=False, help='Specify either \n'
+    df_group.add_argument('--dataframe', metavar='DATAFRAME', required=False, help='Specify either \n'
                                                                                          '- python path to DataFrame object\n'
                                                                                          '- python path to DataFrame supplier function\n'
                                                                                          '- file path a file with a dataframe in any legal pandas format\n')
@@ -81,9 +87,6 @@ if __name__ == '__main__':
                 dill.dump(results, dumpfile)
 
     if args.column is None:
-        if not args.quiet:
-            results.print()
-
         if args.graph is not None:
             if 'summary' in args.graph:
                 results.graph_summary()
@@ -98,8 +101,6 @@ if __name__ == '__main__':
             results.plt.show()
     else:
         results = results.get_column_results(args.column[0])
-        if not args.quiet:
-            results.print()
 
         if args.graph is not None:
             if 'summary' in args.graph:
@@ -112,4 +113,25 @@ if __name__ == '__main__':
                 results.graph_validity_heatmap(binary=True)
             if 'validity-nonbinary' in args.graph:
                 results.graph_validity_heatmap(binary=True)
-            results.plt.show()
+            Process(target=results.plt.show, args=()).start()
+
+    if args.print or (args.graph is None and not args.show_invalids):
+        results.print()
+
+    if args.show_invalids:
+        invalids = results.get_invalid_rows()
+        fmt = 'repr' if args.invalids_format is None else args.invalids_format[0]
+        if fmt == 'csv':
+            print(invalids.to_csv())
+        elif fmt == 'tsv':
+            print(invalids.to_csv(sep='\t'))
+        elif fmt == 'json':
+            print(invalids.to_json())
+        elif fmt == 'repr':
+            print(invalids)
+        elif fmt == 'gui':
+            if utils.in_colab():
+                utils.error('Error: specified --invalids-format gui, but pandasgui not available in jupyter '
+                            'notebooks.')
+            else:
+                Process(target=pandasgui.show, args=tuple(invalids)).start()
