@@ -1,6 +1,7 @@
 # To adjust in HLS
 import colorsys
 # To generate cmap, convert names to hex & rgb
+import os
 import re
 import sys
 from enum import Enum
@@ -119,11 +120,7 @@ def in_notebook():
 
 
 def in_colab():
-    try:
-        import IPython
-        return in_notebook() and 'google.colab' in IPython.get_ipython().config.get('google.colab', '')
-    except ImportError:
-        return False
+    return 'COLAB_GPU' in os.environ
 
 
 def colortext(text: str, color: Color, marker=False):
