@@ -4,16 +4,6 @@ from typing import Any, List, Union, Iterable
 from pandas import DataFrame
 
 
-def from_bool_arr(bool_arr: Iterable[bool]):
-    """
-    Returns a list of false value indexes from a boolean iterable.
-
-    :param bool_arr: a boolean iterable
-    :return: a list of indexes matching false values in the iterable
-    """
-    return [i for i, cell in enumerate(bool_arr) if not cell]
-
-
 def in_range_test(left_limit: Union[int, float] = None, right_limit: Union[int, float] = None,
                   left_inclusive=True, right_inclusive=False, preprocess: callable = lambda x: x):
     """
@@ -31,7 +21,7 @@ def in_range_test(left_limit: Union[int, float] = None, right_limit: Union[int, 
                or left_inclusive and value == left_limit \
                or right_inclusive and value == right_limit
 
-    func = lambda column, df: from_bool_arr(df[column].apply(preprocess).apply(test_cell))
+    func = lambda column, df: df[column].apply(preprocess).apply(test_cell)
     func.__name__ = f'In range {"[" if left_inclusive else "("}{left_limit}, {right_limit}{"]" if right_inclusive else ")"}'
     return func
 
@@ -43,7 +33,7 @@ def non_equal_test(value: Any):
     :param value: the value to check against
     :return: a generic test function that checks if values are not equal some given other value.
     """
-    func = lambda column, df: from_bool_arr((df[column] != value))
+    func = lambda column, df: df[column] != value
     func.__name__ = f'Not {str(value)}'
     return func
 
@@ -55,7 +45,7 @@ def in_list_test(lst: List[Any]):
     :param lst: the list to check against
     :return: a generic test function that checks if values in the given column are in the specified list
     """
-    func = lambda column, df: from_bool_arr(df[column].apply(lambda x: x in lst))
+    func = lambda column, df: df[column].apply(lambda x: x in lst)
     func.__name__ = 'In list ' + str(lst)
     return func
 
@@ -65,7 +55,7 @@ def match_test(regex: str):
     :param regex: regular expression to test against
     :return: a generic test function that checks values in the given column match the specified regex
     """
-    func = lambda column, df: from_bool_arr(df[column].str.match(regex))
+    func = lambda column, df: df[column].str.match(regex)
     func.__name__ = f'Match /{regex}/'
     return func
 
@@ -81,13 +71,13 @@ def simple_type_test(data_types: Union[List[type], type]):
     data_types = [data_types] if type(data_types) is type else data_types
     type_str = str([data_type.__name__ for data_type in data_types]) if len(data_types) > 1 else data_types[0].__name__
 
-    func = lambda column, df: from_bool_arr(df[column].apply(lambda x: type(x) in data_types))
+    func = lambda column, df: df[column].apply(lambda x: type(x) in data_types)
     func.__name__ = f'Type {type_str}'
     return func
 
 
 def dftest_not_null(column: str, dataframe: DataFrame):
-    return from_bool_arr(~dataframe[column].isnull())
+    return ~dataframe[column].isnull()
 
 
 dftest_fraction = in_range_test(0, 1, True, True)
