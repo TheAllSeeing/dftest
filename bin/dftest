@@ -9,10 +9,12 @@ import dill
 
 
 import pandas
-import pandasgui
 
 from dftest import utils
 from dftest.DFTests import DFTests
+
+if not utils.in_colab():
+    import pandasgui
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(prog='dftest', formatter_class=argparse.RawTextHelpFormatter)
