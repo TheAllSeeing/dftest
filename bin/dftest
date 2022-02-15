@@ -144,4 +144,4 @@ if __name__ == '__main__':
                 utils.error('Error: specified --invalids-format gui, but pandasgui not available in jupyter '
                             'notebooks.')
             else:
-                Process(target=pandasgui.show, args=tuple(invalids)).start()
+                Process(target=pandasgui.show, args=(invalids,)).start()
