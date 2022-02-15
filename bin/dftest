@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 results.graph_validity_heatmap(binary=True)
             if 'validity-nonbinary' in args.graph:
                 results.graph_validity_heatmap(binary=True)
-            results.plt.show()
+            Process(target=results.plt.show, args=()).start()
     else:
         results = results.get_column_results(args.column[0])
 
