@@ -86,13 +86,13 @@ def simple_type_test(data_types: Union[List[type], type]):
     return func
 
 
-def test_not_null(column: str, dataframe: DataFrame):
+def dftest_not_null(column: str, dataframe: DataFrame):
     return from_bool_arr(~dataframe[column].isnull())
 
 
-test_fraction = in_range_test(0, 1, True, True)
-test_positive = in_range_test(0, left_inclusive=False)
+dftest_fraction = in_range_test(0, 1, True, True)
+dftest_positive = in_range_test(0, left_inclusive=False)
 
-test_integer = simple_type_test(int)
-test_float = simple_type_test(float)
-test_str = simple_type_test(str)
+dftest_integer = simple_type_test(int)
+dftest_float = simple_type_test(float)
+dftest_str = simple_type_test(str)
