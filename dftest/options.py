@@ -20,4 +20,4 @@ def options(**kwargs):
 
 
 def declare_options(func, **kwargs):
-    _options_dict.options[func] = kwargs
+    _options_dict[func] = kwargs
