@@ -1,18 +1,26 @@
 #!/bin/python3
 from __future__ import annotations
+
+# For patsing command line options
 import argparse
+# For checking an argument is a file, directory, or something else
 import os.path
+# To allow importing modules from current directory tree
 import sys
-from multiprocessing import Process
-
+# To save results to file
 import dill
-
-
+# To  read dataframes to test
 import pandas
 
+# To start pyplot and pandasgui in the background, such that they can run concurrently
+from multiprocessing import Process
+
+# For printing error messages, Colab check, silencing output, and parsing python object paths.
 from dftest import utils
+# For running the tests
 from dftest.DFTests import DFTests
 
+# For opening invalid rows in pandasgui; this requires an X server and so does not work in Colab.
 if not utils.in_colab():
     import pandasgui
 
