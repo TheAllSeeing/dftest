@@ -112,7 +112,7 @@ class DFTests:
 
                 if func.__code__.co_argcount == 1:  # Concrete tests
                     tested_columns = args.pop('tested_columns', None)
-                    self.add_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
+                    self.add_concrete_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
 
                 elif func.__code__.co_argcount == 2: # Generic Tests
                     include = args.pop('include', None)
@@ -127,7 +127,7 @@ class DFTests:
                                      f'Only column, dataframe, **kwargs allowed')
             else:
                 if func.__code__.co_argcount == 1:
-                    self.add_test(func)
+                    self.add_concrete_test(func)
                 elif func.__code__.co_argcount == 2:
                     self.add_generic_test(func)
                 else:
@@ -183,15 +183,15 @@ class DFTests:
                                           name, test_cfg.getboolean('autodetect', False),
                                           get_list(test_cfg, 'autodetect_ignore'))
                 elif argcount == 1:
-                    self.add_test(test_func, name, get_list(test_cfg, 'tested_columns'),
-                                  get_list(test_cfg, 'autodetect_ignore'))
+                    self.add_concrete_test(test_func, name, get_list(test_cfg, 'tested_columns'),
+                                           get_list(test_cfg, 'autodetect_ignore'))
                 else:
                     raise ValueError(f'Invalid test specified: {test}: function argcount {argcount};'
                                      f'only (row) or (column, row) params are allowed')
 
-    def add_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
-                 tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = None,
-                 **kwargs):
+    def add_concrete_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
+                          tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = None,
+                          **kwargs):
         """
         Add a test to the Testing Suite.
 
@@ -263,11 +263,10 @@ class DFTests:
             include = set(include).union(set(dtype_columns))
 
         exclude = [] if exclude is None else exclude
-
         for column in (set(include) - set(exclude)):
             tested_cols = None if column_autodetect else [column]
             func_name = test_func.__name__ if name is None else name
-            self.add_test(
+            self.add_concrete_test(
                 test_func=partial(test_func, column),
                 name=func_name + ' — ' + column,
                 tested_columns=tested_cols,
