@@ -96,7 +96,8 @@ if __name__ == '__main__':
 
         if args.dump is not None:
             with open(args.dump[0], 'wb+') as dumpfile:
-                dill.dump(results, dumpfile)
+                dump_proc = Process(target=dill.dump, args=(results, dumpfile))
+                dump_proc.start()
 
     if args.column is None:
         if args.graph is not None:
@@ -147,3 +148,9 @@ if __name__ == '__main__':
                             'notebooks.')
             else:
                 Process(target=pandasgui.show, args=(invalids,)).start()
+
+    # If dump process exists, wait for it to finish.
+    try:
+        dump_proc.join()
+    except NameError:
+        pass
