@@ -224,7 +224,7 @@ class DFTests:
 
     def add_generic_test(self, test_func: Callable[[DataFrame], List[Hashable]], include: Iterable[str] = None,
                          include_dtypes: List[type] = None, exclude: Iterable[str] = None, name: str = None,
-                         column_autodetect: bool = False, ignore_columns: List[str] = None,
+                         column_autodetect: bool = None, ignore_columns: List[str] = None,
                          success_threshold: float = None, **kwargs):
 
         """
@@ -253,6 +253,7 @@ class DFTests:
         :param success_threshold: for Index tests, this is the validity threshold that will be used to determine the test's overall success.
         """
         success_threshold = 1 if success_threshold is None else success_threshold
+        column_autodetect = True if column_autodetect is None else False
         include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
         dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns if len(include_dtypes) > 0 else []
 
