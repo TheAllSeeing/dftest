@@ -94,7 +94,7 @@ class DFTests:
             # module_path = filename.replace(os.path.sep, '.')
             # module = __import__(module_path)
             test_funcs_to_add = [getattr(module, attr) for attr in dir(module)
-                                 if re.compile('^[dD][Ff][_]?[Tt]est[_A-Z]').match(attr)]
+                                 if re.compile('^[Dd][Ff][_]?[Tt]est[A-Z_]').match(attr)]
             test_funcs_to_add = list(filter(callable, test_funcs_to_add))  # make sure to only take funcs
             if len(test_funcs_to_add) == 0:
                 utils.warning(f'Warning: no tests found in {filepath}')
