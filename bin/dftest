@@ -36,9 +36,11 @@ if __name__ == '__main__':
 
     normal_invalid_group = arg_parser.add_mutually_exclusive_group()
     normal_invalid_group.add_argument('-p', '--print', action='store_true', help='print results')
-    normal_invalid_group.add_argument('--show-invalids', action='store_true', help='print a ')
 
-    arg_parser.add_argument('--invalids-format', nargs=1, choices=['csv', 'tsv', 'json', 'repr', 'gui'], help='specify format to print invalids')
+    invalids_group = normal_invalid_group.add_argument_group()
+    invalids_group.add_argument('--show-invalids', action='store_true', help='print a ')
+    invalids_group.add_argument('--invalids-format', nargs=1, choices=['csv', 'tsv', 'json', 'repr', 'gui'],
+                                help='specify format to print invalids')
 
     res_df_group = arg_parser.add_mutually_exclusive_group()
     res_df_group.add_argument('--results', metavar='RESULTS', nargs=1, help='specify results dill')
