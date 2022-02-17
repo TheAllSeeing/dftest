@@ -10,4 +10,7 @@ dftest (inspired by pytest) is a project aims to give data scientists tools to
 detect problematic data which may lead to unexpected results, and loctae these
 rows and columns which may need to be removed or require additional cleaning.
 
-Full documentation at [README.ipynb](README.ipynb).
+Full documentation at [README.ipynb](README.ipynb). Some of the outputs in the
+notebooks are partial or incorrect - specifically, graphs don't display
+correctly and the save action shows errors. This does not reflect actual
+behaviour and will be fixed in the coming days.
