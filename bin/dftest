@@ -32,7 +32,8 @@ if __name__ == '__main__':
 
     arg_parser.add_argument('-q', '--quiet', action='store_true', help='print results')
     arg_parser.add_argument('-c', '--column', nargs=1, help='show results of specific column')
-    arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results', metavar='GRAPH_TYPE',
+    arg_parser.add_argument('-g', '--graph', nargs='+', help='specify graphs to display of the results',
+                            metavar='GRAPH_TYPE',
                             choices=['coverage', 'summary', 'validity', 'tests', 'validity-binary',
                                      'validity-nonbinary'])
 
@@ -49,9 +50,9 @@ if __name__ == '__main__':
     df_group = res_df_group.add_argument_group()
     df_group.add_argument('-d', '--dump', metavar='DUMP_FILE', nargs=1, help='dump results to file')
     df_group.add_argument('--dataframe', metavar='DATAFRAME', required=False, help='Specify either \n'
-                                                                                         '- python path to DataFrame object\n'
-                                                                                         '- python path to DataFrame supplier function\n'
-                                                                                         '- file path a file with a dataframe in any legal pandas format\n')
+                                                                                   '- python path to DataFrame object\n'
+                                                                                   '- python path to DataFrame supplier function\n'
+                                                                                   '- file path a file with a dataframe in any legal pandas format\n')
     arg_parser.add_argument('--files', metavar='FILE_OR_DIR', nargs='+', help='files or dirs to search for tests')
 
     args = arg_parser.parse_args()
