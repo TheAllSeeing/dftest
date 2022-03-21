@@ -8,6 +8,8 @@ import os.path
 # To allow importing modules from current directory tree
 import sys
 # To save results to file
+import traceback
+
 import dill
 # To  read dataframes to test
 import pandas
@@ -81,11 +83,16 @@ if __name__ == '__main__':
 
         else:
             sys.path.append('.')
-            df_obj = utils.get_func_from_addr(args.dataframe)
-            if callable(df_obj):
-                df = df_obj()
-            else:
-                df = df_obj
+            try:
+                df_obj = utils.get_func_from_addr(args.dataframe)
+                if callable(df_obj):
+                    df = df_obj()
+                else:
+                    df = df_obj
+            except ModuleNotFoundError:
+                utils.error(f'Error: {args.dataframe} is neither an existing file nor a valid python object')
+                utils.error(traceback.format_exc())
+                exit(1)
 
         dftests = DFTests(df)
 
