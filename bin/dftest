@@ -55,7 +55,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     if args.quiet:
-       utils.silence_output()
+        sys.stdout = open(os.devnull, 'w')
 
     if args.results is None and (args.dataframe is None and args.files is None) \
             or args.results is not None and (args.dataframe is not None or args.files is not None):
