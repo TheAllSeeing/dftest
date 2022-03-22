@@ -66,7 +66,8 @@ class DFTests:
         self.tests: List[Test] = []
         self.columns_tested = set()
 
-    def load_files(self, *files):
+    @staticmethod
+    def from_files(*files):
         """
         Loads test functions from a given module by path. Functions are detected as any callables with a "test_"
         prefix.
@@ -85,14 +86,18 @@ class DFTests:
                 file_list.append(filename)
 
         test_funcs = []
+        dataframe = None
         sys.path.append('.')
         for i, filepath in enumerate(file_list):
             spec = importlib.util.spec_from_file_location(f'somemodule_{i}', filepath)  # Gets module specifications
-            # Gets module object and loads it
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            # module_path = filename.replace(os.path.sep, '.')
-            # module = __import__(module_path)
+
+            if '__testframe__' in dir(module):
+                dataframe = getattr(module, '__testframe__')
+                if callable(dataframe):
+                    dataframe = dataframe()
+
             test_funcs_to_add = [getattr(module, attr) for attr in dir(module)
                                  if re.compile('^[Dd][Ff][_]?[Tt]est[A-Z_]').match(attr)]
             test_funcs_to_add = list(filter(callable, test_funcs_to_add))  # make sure to only take funcs
@@ -100,11 +105,16 @@ class DFTests:
                 utils.warning(f'Warning: no tests found in {filepath}')
             test_funcs += test_funcs_to_add
 
+        if dataframe is None or not isinstance(dataframe, DataFrame):
+            raise ValueError('No valid __testframe__ found! You must define your tested dataframe')
+
+        dftests = DFTests(dataframe)
+
         for func in test_funcs:
 
             args = dftest.get_test_options(func)
 
-            if args is not None: # If options were specified for test
+            if args is not None:  # If options were specified for test
                 # get shared options
                 name = args.pop('name', None)
                 ignore_columns = args.pop('ignore_columns', None)
@@ -112,14 +122,14 @@ class DFTests:
 
                 if func.__code__.co_argcount == 1:  # Concrete tests
                     tested_columns = args.pop('tested_columns', None)
-                    self.add_concrete_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
+                    dftests.add_concrete_test(func, name, tested_columns, ignore_columns, success_threshold, **args)
 
-                elif func.__code__.co_argcount == 2: # Generic Tests
+                elif func.__code__.co_argcount == 2:  # Generic Tests
                     include = args.pop('include', None)
                     include_dtypes = args.pop('include_dtypes', None)
                     exclude = args.pop('exclude', None)
                     column_autodetect = args.pop('column_autodetect', False)
-                    self.add_generic_test(func, include, include_dtypes, exclude, name, column_autodetect,
+                    dftests.add_generic_test(func, include, include_dtypes, exclude, name, column_autodetect,
                                           ignore_columns, success_threshold, **args)
                 else:
                     raise ValueError(f'test function with invalid params: {func.__name__} '
@@ -127,13 +137,14 @@ class DFTests:
                                      f'Only column, dataframe, **kwargs allowed')
             else:
                 if func.__code__.co_argcount == 1:
-                    self.add_concrete_test(func)
+                    dftests.add_concrete_test(func)
                 elif func.__code__.co_argcount == 2:
-                    self.add_generic_test(func)
+                    dftests.add_generic_test(func)
                 else:
                     raise ValueError(f'test function with invalid params: {func.__name__} '
                                      f'takes {func.__code__.co_varnames[func.__code__.co_argcount]}\n'
                                      f'Only column, dataframe, **kwargs allowed')
+        return dftests
 
     def load_config(self, config_file: str):
         """
@@ -190,7 +201,8 @@ class DFTests:
                                      f'only (row) or (column, row) params are allowed')
 
     def add_concrete_test(self, test_func: Callable[[DataFrame], List[Hashable]], name: str = None,
-                          tested_columns: List[str] = None, ignore_columns: List[str] = None, success_threshold: float = None,
+                          tested_columns: List[str] = None, ignore_columns: List[str] = None,
+                          success_threshold: float = None,
                           **kwargs):
         """
         Add a test to the Testing Suite.
@@ -254,7 +266,8 @@ class DFTests:
         """
         success_threshold = 1 if success_threshold is None else success_threshold
         column_autodetect = True if column_autodetect is None else False
-        include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in include_dtypes}
+        include_dtypes = set() if include_dtypes is None else {object if type is str else type for type in
+                                                               include_dtypes}
         dtype_columns = self.dataframe.select_dtypes(include_dtypes).columns if len(include_dtypes) > 0 else []
 
         if include is None and len(include_dtypes) > 0:  # If only dtype is specified, select only these columns

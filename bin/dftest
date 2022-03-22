@@ -70,35 +70,8 @@ if __name__ == '__main__':
         with open(args.results[0], 'rb') as dumpfile:
             results = dill.load(dumpfile)
     else:
-        if os.path.isfile(args.dataframe):
-            if args.dataframe.endswith('.csv'):
-                df = pandas.read_csv(args.dataframe)
-            elif args.dataframe.endswith('.tsv'):
-                df = pandas.read_csv(args.dataframe, delimiter='\t')
-            elif args.dataframe.endswith('.json'):
-                df = pandas.read_json(args.dataframe)
-            elif args.dataframe.endswith('.xlsx'):
-                df = pandas.read_excel(args.dataframe)
-            else:
-                raise ValueError('Invalid dataframe file: unrecognized extension: ' + args.dataframe)
-
-        else:
-            sys.path.append('.')
-            try:
-                df_obj = utils.get_func_from_addr(args.dataframe)
-                if callable(df_obj):
-                    df = df_obj()
-                else:
-                    df = df_obj
-            except ModuleNotFoundError:
-                utils.error(f'Error: {args.dataframe} is neither an existing file nor a valid python object')
-                utils.error(traceback.format_exc())
-                exit(1)
-
-        dftests = DFTests(df)
-
         file_args = args.files
-        dftests.load_files(*file_args)
+        dftests = DFTests.from_files(*file_args)
 
         results = dftests.run()
 
