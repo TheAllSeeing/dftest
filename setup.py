@@ -11,7 +11,7 @@ if 'COLAB_GPU' not in os.environ:
 setup(
     name='dftest',
     packages=['dftest'],
-    version='0.2.1',
+    version='0.4.0',
     scripts=['bin/dftest'],
     install_requires=deps,
     description='A library for testing and analyzing data integrity.',
