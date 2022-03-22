@@ -1,7 +1,7 @@
 #!/bin/python3
 from __future__ import annotations
 
-# For patsing command line options
+# For parsing command line options
 import argparse
 # For checking an argument is a file, directory, or something else
 import os.path
